@@ -1,32 +1,32 @@
 ﻿## Wingetix v1.1.0 🚀
 
-Esta nueva versión oficial de **Wingetix** introduce soporte multilingüe completo (Español e Inglés), selector de idioma durante la instalación y en la aplicación, blindaje de componentes del sistema y mejoras integrales en la gestión de puntos de restauración.
+This major update introduces full bilingual support (English & Spanish), setup installer language selection, system component shielding, and comprehensive System Restore Point integration.
 
 ---
 
-### 🌟 Novedades y Mejoras Destacadas
+### 🌟 What's New & Key Highlights
 
-#### 🌐 Soporte Multilingüe Completo (Español & English)
-- **Selector de idioma en la instalación**: El instalador permite elegir el idioma antes de comenzar la copia de archivos, configurando Wingetix automáticamente en ese idioma en su primer arranque.
-- **Menú de cabecera Wingetix**: Nuevo menú desplegable elegante en la barra de título para alternar entre Español e Inglés en tiempo real sin reiniciar la aplicación.
-- **Traducción integral**: 100% de la interfaz traducida, incluyendo monitores de GPU, paneles de diagnóstico, tablas de software, avisos de desinstalación y diálogos de confirmación.
+#### 🌐 Full Bilingual Internationalization (English & Spanish)
+- **Installer Language Selection**: You can now select your preferred language (English or Spanish) directly when running the installer. Wingetix will automatically configure itself in that language on its very first launch.
+- **Header Brand Menu & Dynamic Language Switcher**: A sleek, new dropdown menu on the top-left title bar allows you to switch between English and Spanish instantly without restarting the application.
+- **100% Comprehensive Translations**: All views, GPU telemetry, system health stats, software tables, modals, error dialogs, and progress bars now render seamlessly in both languages.
 
-#### 🛡️ Blindaje de Componentes Críticos del Sistema
-- **Exclusión automática de actualizaciones sensibles**: Para evitar problemas de estabilidad o corrupción en Windows, las librerías críticas (.NET, Microsoft Visual C++, DirectX y controladores) se excluyen de la actualización masiva.
-- **Aviso especial de desinstalación**: En el desinstalador limpio, los componentes esenciales del sistema están claramente identificados con un escudo de seguridad y requieren confirmación con cuenta regresiva antes de cualquier acción.
+#### 🛡️ Windows System Component Shielding
+- **Automatic Exclusion of Sensitive Runtimes**: To prevent accidental OS corruption or software crashes, critical Windows system libraries (.NET Framework, Visual C++ Redistributables, DirectX, and hardware drivers) are automatically protected and excluded from batch updates.
+- **Special Clean Uninstaller Warnings**: System components are clearly marked with a security badge in the uninstaller. A strict countdown confirmation modal is enforced before attempting any removal.
 
-#### 🔄 Puntos de Restauración del Sistema Optimizados
-- Monitoreo en tiempo real del estado de protección del sistema operativo (Activa / Desactivada).
-- Creación rápida de instantáneas con descripciones personalizadas.
-- Tabla interactiva con tipos de puntos traducidos dinámicamente y botones de acción rápida para restaurar o eliminar instantáneas.
-
----
-
-### 📦 Archivos del Release
-
-- **`Wingetix Setup 1.1.0.exe`** (Recomendado): Instalador oficial con selector de idioma, creación de accesos directos y activación automática de WinGet en la terminal de Windows.
-- **`Wingetix 1.1.0.exe`**: Versión portable lista para usar sin necesidad de instalación.
+#### 🔄 System Restore Points Enhancements
+- Real-time detection and badge display of Windows System Protection status (**Active** / **Disabled**).
+- Fast creation of custom manual restore points before applying major driver updates or uninstalling apps.
+- Dynamic table rendering with translated snapshot types (System Checkpoints, Installations, Uninstallations, Drivers) and one-click restore / delete actions.
 
 ---
 
-**Desarrollado con ❤️ por Jose Antonio Baeza Pineda (@joselyky)**
+### 📦 Release Assets
+
+- **`Wingetix Setup 1.1.0.exe`** *(Recommended)*: Official modern installer with language selector, desktop shortcut creation, and automatic WinGet terminal registration.
+- **`Wingetix 1.1.0.exe`**: Portable standalone executable that runs without installation.
+
+---
+
+**Crafted with ❤️ by Jose Antonio Baeza Pineda ([@joselyky](https://github.com/joselyky))**
