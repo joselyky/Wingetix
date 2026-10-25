@@ -350,14 +350,17 @@ function initQueueUI(items) {
       if (actionsEl) actionsEl.classList.add('hidden');
 
       if (action === 'admin') {
+        if (sessionCompletedPkgIds) sessionCompletedPkgIds.delete(pkg.id);
         showToast(`Solicitando autorización de Administrador para ${pkg.name || pkg.id}...`, 'info');
         window.electronAPI.upgradePackageElevated(pkg);
       } else if (action === 'kill-retry') {
+        if (sessionCompletedPkgIds) sessionCompletedPkgIds.delete(pkg.id);
         showToast(`Cerrando procesos de ${pkg.name || pkg.id}...`, 'info');
         await window.electronAPI.killProcess(pkg.id);
         showToast(`Reintentando actualización de ${pkg.name || pkg.id}...`, 'info');
         window.electronAPI.upgradePackages([pkg]);
       } else if (action === 'retry') {
+        if (sessionCompletedPkgIds) sessionCompletedPkgIds.delete(pkg.id);
         showToast(`Reintentando actualización de ${pkg.name || pkg.id}...`, 'info');
         window.electronAPI.upgradePackages([pkg]);
       }
@@ -376,6 +379,11 @@ function updateQueueUI(data) {
   const actionsEl = document.getElementById(`queue-actions-${safeId}`);
 
   if (!card) return;
+
+  // If already completed in this session, ignore any lagging downloading/installing events
+  if (sessionCompletedPkgIds && sessionCompletedPkgIds.has(data.pkgId) && data.status !== 'completed') {
+    return;
+  }
 
   // Clear state classes
   card.classList.remove('item-downloading', 'item-installing', 'item-completed', 'item-error');
@@ -430,6 +438,7 @@ function updateQueueUI(data) {
     setStatusBar(`Instalando: ${pName}`, `${data.message || 'Ejecutando instalador oficial de Windows'}${secText}`, null, 'busy');
   } else if (data.status === 'completed') {
     card.classList.remove('item-installing');
+    card.classList.remove('item-downloading');
     card.classList.add('item-completed');
     sessionCompletedPkgIds.add(data.pkgId);
 
@@ -448,6 +457,10 @@ function updateQueueUI(data) {
     if (bytesEl) bytesEl.textContent = data.message || `${data.downloadedMB || totalMbText} (Descargado)`;
     if (speedEl) speedEl.textContent = 'Listo';
     if (pctEl) pctEl.textContent = '100%';
+
+    const currentPkg = currentQueueItems.find(i => i.id === data.pkgId);
+    const pName = currentPkg ? currentPkg.name : data.pkgId;
+    setStatusBar(`Actualizado: ${pName}`, data.message || 'Completado con éxito', 100, 'ready');
   } else if (data.status === 'error' || data.status === 'in-use' || data.status === 'admin-needed') {
     card.classList.add('item-error');
     const isAdmin = data.status === 'admin-needed' || data.errorType === 'admin';
@@ -3635,7 +3648,7 @@ async function handleCheckForAppUpdates(manual = false) {
       showAppUpdateModal(res);
     } else {
       if (manual) {
-        showToast(`¡Wingetix ya está actualizado a la versión más reciente (v${res.currentVersion || '1.0.2'})!`, 'success');
+        showToast(`¡Wingetix ya está actualizado a la versión más reciente (v${res.currentVersion || '1.1.0'})!`, 'success');
       }
     }
   } catch (err) {
@@ -3663,7 +3676,7 @@ function showAppUpdateModal(info) {
   const btnInstall = document.getElementById('btn-update-install-now');
   const btnCancel = document.getElementById('btn-update-cancel');
 
-  if (curVer) curVer.textContent = `v${info.currentVersion || '1.0.2'}`;
+  if (curVer) curVer.textContent = `v${info.currentVersion || '1.1.0'}`;
   if (newVer) newVer.textContent = `v${info.latestVersion || info.releaseTag || ''}`;
 
   if (dateEl) {

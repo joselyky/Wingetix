@@ -707,17 +707,37 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
     let installStarted = false;
     let installInterval = null;
     let autoInstallTimer = null;
+    let isTerminated = false;
+
+    const cleanupTimers = () => {
+      isTerminated = true;
+      if (tracker) {
+        try { tracker.stop(); } catch (_) {}
+        tracker = null;
+      }
+      if (autoInstallTimer) {
+        clearTimeout(autoInstallTimer);
+        autoInstallTimer = null;
+      }
+      if (installInterval) {
+        clearInterval(installInterval);
+        installInterval = null;
+      }
+    };
 
     const triggerInstallation = () => {
-      if (installStarted) return;
+      if (installStarted || isTerminated) return;
       installStarted = true;
-      if (tracker) tracker.stop();
+      if (tracker) {
+        try { tracker.stop(); } catch (_) {}
+      }
       if (autoInstallTimer) { clearTimeout(autoInstallTimer); autoInstallTimer = null; }
 
       let installSec = 0;
       const finalMB = totalBytes > 0 ? (totalBytes / (1024 * 1024)).toFixed(1) : (tracker ? (tracker.getMaxBytes() / (1024 * 1024)).toFixed(1) : '—');
 
       const sendInstallUpdate = (sec) => {
+        if (isTerminated) return;
         let stepMsg = 'Iniciando instalador oficial de Windows...';
         if (sec >= 3 && sec < 10) stepMsg = 'Extrayendo y verificando archivos...';
         else if (sec >= 10 && sec < 22) stepMsg = 'Aplicando actualización en el sistema...';
@@ -740,12 +760,20 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
 
       sendInstallUpdate(0);
       installInterval = setInterval(() => {
+        if (isTerminated) {
+          if (installInterval) {
+            clearInterval(installInterval);
+            installInterval = null;
+          }
+          return;
+        }
         installSec++;
         sendInstallUpdate(installSec);
       }, 1000);
     };
 
     proc.stdout.on('data', d => {
+      if (isTerminated) return;
       const text = d.toString('utf8');
       procOutput += text;
       event.sender.send('winget:log', { type: 'output', text });
@@ -756,10 +784,12 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
         targetUrl = urlMatch[0];
         getTotalSizeFromUrl(targetUrl).then(size => {
           totalBytes = size;
-          if (!installStarted) {
-            if (tracker) tracker.stop();
+          if (!installStarted && !isTerminated) {
+            if (tracker) {
+              try { tracker.stop(); } catch (_) {}
+            }
             tracker = trackActiveDownload(pkgId, totalBytes, prog => {
-              if (installStarted) return;
+              if (installStarted || isTerminated) return;
               event.sender.send('winget:queue-update', {
                 pkgId,
                 status: 'downloading',
@@ -780,7 +810,7 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
 
       // Native Winget progress parsing from stdout (e.g. 15.2 MB / 45.0 MB)
       const mbMatch = text.match(/(\d+(?:\.\d+)?)\s*(MB|KB|GB)\s*[\/|de]\s*(\d+(?:\.\d+)?)\s*(MB|KB|GB)/i);
-      if (mbMatch && !installStarted) {
+      if (mbMatch && !installStarted && !isTerminated) {
         const cur = parseFloat(mbMatch[1]);
         const unit1 = mbMatch[2].toUpperCase();
         const tot = parseFloat(mbMatch[3]);
@@ -801,9 +831,9 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
             total: packages.length
           });
           if (pct >= 99) {
-            if (!autoInstallTimer) {
+            if (!autoInstallTimer && !installStarted && !isTerminated) {
               autoInstallTimer = setTimeout(() => {
-                if (!installStarted) triggerInstallation();
+                if (!installStarted && !isTerminated) triggerInstallation();
               }, 1200);
             }
           }
@@ -822,7 +852,7 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
                          textLower.includes('installing package') ||
                          textLower.includes('installing...');
 
-      if ((hasHash || hasInstall) && !installStarted) {
+      if ((hasHash || hasInstall) && !installStarted && !isTerminated) {
         triggerInstallation();
       }
     });
@@ -830,7 +860,7 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
     proc.stderr.on('data', d => { procOutput += d.toString('utf8'); });
 
     proc.on('close', code => {
-      if (tracker) tracker.stop();
+      cleanupTimers();
       const outputLower = procOutput.toLowerCase();
       const unsignedCode = (typeof code === 'number') ? (code >>> 0) : 0;
       const hexCode = '0x' + unsignedCode.toString(16).toLowerCase();
@@ -905,6 +935,7 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
         });
 
         runElevatedUpgrade(pkgId, pkgSource, (elevatedCode, elevatedOut) => {
+          cleanupTimers();
           const elUnsigned = (typeof elevatedCode === 'number') ? (elevatedCode >>> 0) : 0;
           const elOk = elevatedCode === 0 || elUnsigned === 3010 || elUnsigned === 1641;
           const userCancel = elevatedCode === 1223 || elUnsigned === 1223;
@@ -961,7 +992,7 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
     });
 
     proc.on('error', err => {
-      if (tracker) tracker.stop();
+      cleanupTimers();
       event.sender.send('winget:queue-update', {
         pkgId,
         status: 'error',
