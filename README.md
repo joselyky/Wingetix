@@ -1,20 +1,20 @@
 <div align="center">
 
-  <img src="logo.png" alt="WinGet Manager Logo" width="110" height="110" style="border-radius: 50%; box-shadow: 0 8px 32px rgba(110, 231, 183, 0.35);" />
+  <img src="logo.png" alt="Wingetix Logo" width="110" height="110" style="border-radius: 50%; box-shadow: 0 8px 32px rgba(110, 231, 183, 0.35);" />
 
-  # WinGet Manager ⚡
+  # Wingetix ⚡
 
   ### *The ultimate visual control panel to manage, batch-update, and cleanly uninstall software on Windows.*
 
-  [![GitHub Release](https://img.shields.io/github/v/release/joselyky/Win-Get-Manager?color=6ee7b7&label=Release&style=for-the-badge)](https://github.com/joselyky/Win-Get-Manager/releases/latest)
-  [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4?style=for-the-badge&logo=windows)](https://github.com/joselyky/Win-Get-Manager)
-  [![Engine](https://img.shields.io/badge/Engine-WinGet%20%2B%20Electron-4f8ef7?style=for-the-badge&logo=electron)](https://github.com/joselyky/Win-Get-Manager)
+  [![GitHub Release](https://img.shields.io/github/v/release/joselyky/Wingetix?color=6ee7b7&label=Release&style=for-the-badge)](https://github.com/joselyky/Wingetix/releases/latest)
+  [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4?style=for-the-badge&logo=windows)](https://github.com/joselyky/Wingetix)
+  [![Engine](https://img.shields.io/badge/Engine-WinGet%20%2B%20Electron-4f8ef7?style=for-the-badge&logo=electron)](https://github.com/joselyky/Wingetix)
   [![License](https://img.shields.io/badge/License-GPLv3-34d399?style=for-the-badge)](LICENSE)
 
   <br />
 
   <p align="center">
-    <b>WinGet Manager</b> transforms the official Windows Package Manager (<code>winget</code>) into a modern, responsive, and intuitive desktop experience. No convoluted terminal commands, no confusing syntax: scan your PC in seconds, batch-update all outdated software with one click, wipe residual leftover files, and keep your system secure in real time.
+    <b>Wingetix</b> transforms the official Windows Package Manager (<code>winget</code>) into a modern, responsive, and intuitive desktop experience. No convoluted terminal commands, no confusing syntax: scan your PC in seconds, batch-update all outdated software with one click, wipe residual leftover files, and keep your system secure in real time.
   </p>
 
   <p align="center">
@@ -29,11 +29,11 @@
 
 ---
 
-## 💡 What is WinGet Manager?
+## 💡 What is Wingetix?
 
 Microsoft introduced **WinGet** as the official command-line package manager for Windows. However, running PowerShell or CMD, memorizing complex command flags, and handling silent installer arguments often leads users to neglect software updates or resort to questionable third-party uninstaller utilities bundled with adware.
 
-**WinGet Manager** solves this:
+**Wingetix** solves this:
 1. **Centralizes all your software** inside a sleek *Windows 11 Glassmorphism* user interface (lightweight, GPU-accelerated dark theme).
 2. **Automates update discovery** by scanning your installed programs and cross-referencing them against Microsoft's official verified repository.
 3. **Clean uninstaller**: Traces and purges orphaned directories in `%AppData%` and obsolete Windows Registry keys left behind by native uninstallers.
@@ -44,7 +44,7 @@ Microsoft introduced **WinGet** as the official command-line package manager for
 
 ## 🛡️ Security, Trust & Guaranteed Privacy
 
-WinGet Manager is architected under a **zero-malware tolerance, full user control, and 100% transparency** standard:
+Wingetix is architected under a **zero-malware tolerance, full user control, and 100% transparency** standard:
 
 ### 🔒 1. Official Download Sources Only (SHA-256 Verified)
 * **Official Microsoft Infrastructure**: Every package originates directly from the verified Microsoft catalog ([winget-pkgs](https://github.com/microsoft/winget-pkgs)) and direct developer CDNs (e.g., Mozilla, Google, Discord, Valve).
@@ -52,7 +52,7 @@ WinGet Manager is architected under a **zero-malware tolerance, full user contro
 * **Zero Middlemen**: No third-party mirrors, no proxies, and absolutely no bundled adware or promotional toolbars.
 
 ### 🛡️ 2. Active System & Game Launcher Shielding
-* **Operating System Integrity**: WinGet Manager never modifies critical Windows system directories (`C:\Windows\System32`, `WinSxS`, or boot registries).
+* **Operating System Integrity**: Wingetix never modifies critical Windows system directories (`C:\Windows\System32`, `WinSxS`, or boot registries).
 * **Platform Shield**: When uninstalling games, an active guard protects the root directories and shared libraries of **Steam, Epic Games, Ubisoft Connect, EA App, Riot Games, Battle.net, and GOG Galaxy**, preventing accidental file deletions.
 * **Confirmed Residuals Only**: The deep cleaner solely targets orphaned folders in `%AppData%` and leftover registry keys provably tied to the removed software.
 
@@ -116,14 +116,14 @@ WinGet Manager is architected under a **zero-malware tolerance, full user contro
 ## 📥 Download & Installation
 
 ### Option 1: Guided Installer (.exe) — Recommended
-Download **`WinGet Manager Setup 1.0.2.exe`** from the official [**GitHub Releases**](https://github.com/joselyky/Win-Get-Manager/releases/latest).
+Download **`Wingetix Setup 1.0.2.exe`** from the official [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest).
 - Guided setup wizard.
 - Creates Desktop and Start Menu shortcuts.
 - Automatically enables and configures `winget` in your Windows terminal if absent.
 - Full uninstallation support from the Windows Control Panel.
 
 ### Option 2: Portable Standalone (.exe)
-Download **`WinGet Manager 1.0.2.exe`** to run the tool standalone without installation (ideal for IT maintenance USB flash drives).
+Download **`Wingetix 1.0.2.exe`** to run the tool standalone without installation (ideal for IT maintenance USB flash drives).
 
 ---
 
@@ -141,8 +141,8 @@ To clone, run, or build the project locally:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/joselyky/Win-Get-Manager.git
-cd Win-Get-Manager
+git clone https://github.com/joselyky/Wingetix.git
+cd Wingetix
 
 # 2. Install dependencies
 npm install

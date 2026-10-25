@@ -508,7 +508,7 @@ function getTotalSizeFromUrl(url, maxRedirects = 5) {
     if (!url || maxRedirects <= 0) return resolve(0);
     try {
       const client = url.startsWith('https:') ? https : http;
-      const req = client.request(url, { method: 'HEAD', headers: { 'User-Agent': 'WinGet-Manager/1.0.1' } }, res => {
+      const req = client.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Wingetix/1.0.2' } }, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           try {
             const nextUrl = new URL(res.headers.location, url).href;
@@ -1315,7 +1315,7 @@ $protectedNames = @(
 $protectedProcs = @(
     'epicgameslauncher', 'epiconlineservices', 'steam', 'steamwebhelper', 'steamservice',
     'ubisoftconnect', 'upc', 'ubisoftgamelauncher', 'eadesktop', 'origin', 'riotclientservices',
-    'battle.net', 'agent', 'explorer', 'svchost', 'powershell', 'cmd', 'electron', 'winget manager', 'taskmgr'
+    'battle.net', 'agent', 'explorer', 'svchost', 'powershell', 'cmd', 'electron', 'wingetix', 'taskmgr'
 )
 
 # ─── FASE 4A: Cierre Seguro de Procesos Bloqueadores ──────────────────────────
@@ -1387,7 +1387,7 @@ function Backup-RegKey([string]$psPath, [string]$label) {
 if ($createRestorePoint) {
     try {
         Write-Output "LOG:info|  [PUNTO DE RESTAURACIÓN] Creando Punto de Restauración del Sistema en Windows..."
-        $null = Checkpoint-Computer -Description "WinGet Manager - Limpieza $cleanName" -RestorePointType "APPLICATION_UNINSTALL" -ErrorAction Stop
+        $null = Checkpoint-Computer -Description "Wingetix - Limpieza $cleanName" -RestorePointType "APPLICATION_UNINSTALL" -ErrorAction Stop
         Write-Output "LOG:success|  [PUNTO DE RESTAURACIÓN] Punto de Restauración del Sistema creado con éxito."
     } catch {
         Write-Output "LOG:output|  [PUNTO DE RESTAURACIÓN] Punto del sistema gestionado por directiva de Windows o intervalo de 24h."
@@ -2109,7 +2109,7 @@ $json = @{ success = $true; enabled = $srEnabled; points = $points } | ConvertTo
 }
 
 function runElevatedRestoreCreate(description, resolve) {
-  const cleanDesc = (description || 'WinGet Manager - Punto manual').replace(/['"]/g, '').trim();
+  const cleanDesc = (description || 'Wingetix - Punto manual').replace(/['"]/g, '').trim();
   const psElevated = `
 $ErrorActionPreference = 'Stop'
 try {
@@ -2242,7 +2242,7 @@ try {
 });
 
 ipcMain.handle('restore:create', async (_event, description) => {
-  const cleanDesc = (description || 'WinGet Manager - Punto manual').replace(/["`$'\\]/g, '').trim();
+  const cleanDesc = (description || 'Wingetix - Punto manual').replace(/["`$'\\]/g, '').trim();
   return new Promise((resolve) => {
     // 1. First try direct Checkpoint-Computer in case process is already elevated
     const directScript = `
@@ -2430,7 +2430,7 @@ ipcMain.handle('restore:delete-all', async () => {
 // APP SELF-UPDATER (GitHub Releases)
 // ═══════════════════════════════════════════════════════════════════════════════
 const GITHUB_OWNER = 'joselyky';
-const GITHUB_REPO = 'Win-Get-Manager';
+const GITHUB_REPO = 'Wingetix';
 const APP_CURRENT_VERSION = app.getVersion() || '1.0.2';
 
 /**
@@ -2470,7 +2470,7 @@ function fetchJson(url, maxRedirects = 5) {
     const client = parsed.protocol === 'https:' ? https : http;
     const req = client.get(url, {
       headers: {
-        'User-Agent': 'WinGet-Manager-AutoUpdater',
+        'User-Agent': 'Wingetix-AutoUpdater',
         'Accept': 'application/vnd.github.v3+json'
       }
     }, res => {
@@ -2567,7 +2567,7 @@ function downloadUpdateAsset(downloadUrl, assetName, onProgress) {
       fs.mkdirSync(updateDir, { recursive: true });
     }
 
-    const safeName = assetName ? path.basename(assetName) : `WinGet-Manager-Update-${Date.now()}.exe`;
+    const safeName = assetName ? path.basename(assetName) : `Wingetix-Update-${Date.now()}.exe`;
     const destPath = path.join(updateDir, safeName);
 
     const makeRequest = (currentUrl, redirectsLeft = 5) => {
@@ -2578,7 +2578,7 @@ function downloadUpdateAsset(downloadUrl, assetName, onProgress) {
 
       const req = client.get(currentUrl, {
         headers: {
-          'User-Agent': 'WinGet-Manager-AutoUpdater',
+          'User-Agent': 'Wingetix-AutoUpdater',
           'Accept': 'application/octet-stream'
         }
       }, res => {

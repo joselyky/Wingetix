@@ -3119,7 +3119,7 @@ function bindRestoreControls() {
       if (inputDesc) {
         const now = new Date();
         const dateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
-        inputDesc.value = `WinGet Manager - Punto manual (${dateStr})`;
+        inputDesc.value = `Wingetix - Punto manual (${dateStr})`;
       }
       modalCreate.classList.remove('hidden');
       if (inputDesc) {
@@ -3141,7 +3141,7 @@ function bindRestoreControls() {
 
   if (btnModalConfirm) {
     btnModalConfirm.addEventListener('click', () => {
-      const desc = inputDesc?.value?.trim() || 'WinGet Manager - Punto manual';
+      const desc = inputDesc?.value?.trim() || 'Wingetix - Punto manual';
       closeCreateModal();
       handleCreateRestorePoint(desc);
     });
@@ -3150,7 +3150,7 @@ function bindRestoreControls() {
   if (inputDesc) {
     inputDesc.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const desc = inputDesc.value.trim() || 'WinGet Manager - Punto manual';
+        const desc = inputDesc.value.trim() || 'Wingetix - Punto manual';
         closeCreateModal();
         handleCreateRestorePoint(desc);
       }
@@ -3417,7 +3417,7 @@ function renderRestorePointsList(points) {
 
 async function handleCreateRestorePoint(description) {
   if (isUpdating) return;
-  const desc = (description || 'WinGet Manager - Punto manual').trim();
+  const desc = (description || 'Wingetix - Punto manual').trim();
 
   isUpdating = true;
   setUIBusy(true);
@@ -3630,7 +3630,7 @@ async function handleCheckForAppUpdates(manual = false) {
       showAppUpdateModal(res);
     } else {
       if (manual) {
-        showToast(`¡WinGet Manager ya está actualizado a la versión más reciente (v${res.currentVersion || '1.0.2'})!`, 'success');
+        showToast(`¡Wingetix ya está actualizado a la versión más reciente (v${res.currentVersion || '1.0.2'})!`, 'success');
       }
     }
   } catch (err) {
@@ -3722,7 +3722,7 @@ async function handleStartDownloadAppUpdate() {
   const assetNameEl = document.getElementById('download-asset-name');
 
   if (assetNameEl) {
-    assetNameEl.textContent = currentAppUpdateInfo.assetName || 'WinGet-Manager-Setup.exe';
+    assetNameEl.textContent = currentAppUpdateInfo.assetName || 'Wingetix-Setup.exe';
   }
 
   if (viewPrompt) viewPrompt.classList.add('hidden');
@@ -3799,7 +3799,7 @@ async function handleInstallAppUpdateNow() {
     return;
   }
 
-  showToast('Iniciando instalador oficial y cerrando WinGet Manager...', 'info');
+  showToast('Iniciando instalador oficial y cerrando Wingetix...', 'info');
 
   try {
     const res = await window.electronAPI.installAppUpdate(downloadedInstallerPath);

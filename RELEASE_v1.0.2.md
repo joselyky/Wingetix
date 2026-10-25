@@ -1,6 +1,6 @@
-## WinGet Manager v1.0.2 🚀
+## Wingetix v1.0.2 🚀
 
-Esta es la actualización más ambiciosa de **WinGet Manager**, introduciendo el **sistema de auto-actualización oficial integrado con GitHub**, puntos de restauración del sistema, rediseño del logo en alta resolución y optimizaciones globales de rendimiento.
+Esta es la actualización más ambiciosa de **Wingetix**, introduciendo el **sistema de auto-actualización oficial integrado con GitHub**, puntos de restauración del sistema, rediseño del logo en alta resolución y optimizaciones globales de rendimiento.
 
 ---
 
@@ -35,8 +35,8 @@ Esta es la actualización más ambiciosa de **WinGet Manager**, introduciendo el
 
 ### 📦 Archivos Adjuntos a este Release
 
-- **`WinGet Manager Setup 1.0.2.exe`** (Recomendado): Instalador interactivo oficial para Windows 10/11 con accesos directos, desinstalador y configuración de WinGet en la terminal.
-- **`WinGet Manager 1.0.2.exe`**: Versión portable lista para ejecutar sin requerir instalación.
+- **`Wingetix Setup 1.0.2.exe`** (Recomendado): Instalador interactivo oficial para Windows 10/11 con accesos directos, desinstalador y configuración de WinGet en la terminal.
+- **`Wingetix 1.0.2.exe`**: Versión portable lista para ejecutar sin requerir instalación.
 
 ---
 
