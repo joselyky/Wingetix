@@ -3195,7 +3195,7 @@ tbody tr:nth-child(10) { animation-delay: 0.20s; }
   background: rgba(79, 142, 247, 0.15);
   border-color: rgba(79, 142, 247, 0.4);
   color: #93c5fd;
-  transform: rotate(30deg);
+  
 }
 
 .btn-check-update-icon.checking svg {
