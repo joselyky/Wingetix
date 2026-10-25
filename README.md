@@ -2,7 +2,7 @@
 
   <img src="logo.png" alt="Wingetix Logo" width="110" height="110" style="border-radius: 50%; box-shadow: 0 8px 32px rgba(110, 231, 183, 0.35);" />
 
-  # Wingetix ⚡
+  # Wingetix
 
   ### *The ultimate visual control panel to manage, batch-update, and cleanly uninstall software on Windows.*
 
