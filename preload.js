@@ -64,4 +64,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAppUpdateAvailable: (cb) => ipcRenderer.on('app:update-available', (_e, data) => cb(data)),
   onAppUpdateDownloadProgress: (cb) => ipcRenderer.on('app:update-download-progress', (_e, data) => cb(data)),
   getAppVersion: () => ipcRenderer.invoke('app:get-version'),
+  openExternalUrl: (url) => ipcRenderer.invoke('app:open-external', url),
+  getInstallerLanguage: () => ipcRenderer.invoke('app:get-installer-language'),
 });

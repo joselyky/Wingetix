@@ -86,6 +86,7 @@ let restoreDataLoaded = false;
 // ─── Init ──────────────────────────────────────────────────────────────────────
 async function init() {
   bindWindowControls();
+  bindLanguageControls();
   bindActionButtons();
   bindSearch();
   bindTabs();
@@ -98,6 +99,144 @@ async function init() {
   bindKeyboardShortcuts();
   initAppUpdater();
   await loadSystemInfo();
+}
+
+// ─── Language & Internationalization Controls ────────────────────────────────
+function bindLanguageControls() {
+  const btnAppMenu = document.getElementById('btn-titlebar-app-menu');
+  const dropdownMenu = document.getElementById('titlebar-app-dropdown');
+  const menuLangEn = document.getElementById('menu-lang-en');
+  const menuLangEs = document.getElementById('menu-lang-es');
+  const menuCheckUpdates = document.getElementById('menu-check-updates');
+  const menuOpenGithub = document.getElementById('menu-open-github');
+
+  const closeDropdown = () => {
+    if (dropdownMenu && !dropdownMenu.classList.contains('hidden')) {
+      dropdownMenu.classList.add('hidden');
+      if (btnAppMenu) {
+        btnAppMenu.setAttribute('aria-expanded', 'false');
+        btnAppMenu.classList.remove('active');
+      }
+    }
+  };
+
+  if (btnAppMenu && dropdownMenu) {
+    btnAppMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = dropdownMenu.classList.toggle('hidden');
+      btnAppMenu.setAttribute('aria-expanded', String(!isHidden));
+      btnAppMenu.classList.toggle('active', !isHidden);
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdownMenu.contains(e.target) && !btnAppMenu.contains(e.target)) {
+        closeDropdown();
+      }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeDropdown();
+      }
+    });
+  }
+
+  // Language selectors
+  if (menuLangEn) {
+    menuLangEn.addEventListener('click', () => {
+      if (window.i18n) window.i18n.setLanguage('en', true);
+      closeDropdown();
+    });
+  }
+
+  if (menuLangEs) {
+    menuLangEs.addEventListener('click', () => {
+      if (window.i18n) window.i18n.setLanguage('es', true);
+      closeDropdown();
+    });
+  }
+
+  // Check for updates action inside menu
+  if (menuCheckUpdates) {
+    menuCheckUpdates.addEventListener('click', () => {
+      closeDropdown();
+      handleCheckForAppUpdates(true);
+    });
+  }
+
+  // GitHub repository link
+  if (menuOpenGithub) {
+    menuOpenGithub.addEventListener('click', () => {
+      closeDropdown();
+      if (window.electronAPI && window.electronAPI.openExternalUrl) {
+        window.electronAPI.openExternalUrl('https://github.com/joselyky/Wingetix');
+      } else {
+        window.open('https://github.com/joselyky/Wingetix', '_blank');
+      }
+    });
+  }
+
+  window.addEventListener('languageChanged', (e) => {
+    onLanguageChanged(e.detail.lang);
+  });
+
+  // Apply default/active language immediately on boot (English 'en' by default)
+  if (window.i18n) {
+    window.i18n.setLanguage(window.i18n.currentLang || 'en');
+  }
+
+  // Check if language was chosen during installer execution and apply if user hasn't explicitly customized
+  if (window.electronAPI && typeof window.electronAPI.getInstallerLanguage === 'function') {
+    window.electronAPI.getInstallerLanguage().then((installerLang) => {
+      if (installerLang && (installerLang === 'en' || installerLang === 'es')) {
+        const hasManualChoice = localStorage.getItem('wingetix_user_selected_lang');
+        if (!hasManualChoice && window.i18n && window.i18n.currentLang !== installerLang) {
+          window.i18n.setLanguage(installerLang);
+        }
+      }
+    }).catch(() => {});
+  }
+}
+
+function onLanguageChanged(lang) {
+  // 1. Sync custom dropdown labels
+  syncCustomDropdown('dropdown-sort-packages', currentSortPackage);
+  syncCustomDropdown('dropdown-sort-installed', currentSortInstalled);
+
+  // 2. Refresh active package table if loaded
+  if (allPackages && allPackages.length > 0) {
+    renderPackageTable(filteredPackages);
+  }
+
+  // 3. Refresh installed apps table if loaded
+  if (allInstalledApps && allInstalledApps.length > 0) {
+    renderInstalledAppsTable(filteredInstalledApps);
+  }
+
+  // 4. Refresh restore points table & protection status if loaded
+  if (typeof updateRestoreProtectionUI === 'function' && typeof currentRestoreEnabled === 'boolean') {
+    updateRestoreProtectionUI(currentRestoreEnabled);
+  }
+  if (allRestorePoints && allRestorePoints.length > 0 && typeof renderRestorePointsList === 'function') {
+    renderRestorePointsList(filteredRestorePoints);
+  }
+
+  // 5. Update status bar if currently idle
+  if (!isUpdating) {
+    resetStatusBar();
+  }
+
+  // 6. Update selection counts and button labels
+  if (typeof updateInstalledSelectionStats === 'function') {
+    updateInstalledSelectionStats();
+  }
+
+  // 7. Refresh GPU dashboard if loaded
+  if (currentGpuData && typeof renderGpuInfo === 'function') {
+    renderGpuInfo(currentGpuData);
+  }
 }
 
 // ─── Window Controls ───────────────────────────────────────────────────────────
@@ -872,7 +1011,8 @@ async function handleScan(manualTrigger = false) {
     }
 
     const rawPackages = result.packages ?? [];
-    allPackages = rawPackages.filter(pkg => !sessionCompletedPkgIds.has(pkg.id));
+    // Exclude system runtimes, drivers, and framework packages to prevent OS corruption
+    allPackages = rawPackages.filter(pkg => !sessionCompletedPkgIds.has(pkg.id) && !isSystemPackage(pkg));
     selectedPackageIds.clear();
 
     if (searchInput) searchInput.value = '';
@@ -903,14 +1043,11 @@ async function handleScan(manualTrigger = false) {
 function handleUpdateSelected() {
   if (isUpdating) return;
 
-  const selectedPackages = getSelectedPackages();
+  const selectedPackages = getSelectedPackages().filter(pkg => !isSystemPackage(pkg));
   if (selectedPackages.length === 0) {
     showToast('Selecciona al menos una aplicación.', 'error');
     return;
   }
-
-  // Check if any selected package is a system package
-  const selectedSystemPkgs = allPackages.filter(pkg => selectedPackageIds.has(pkg.id) && isSystemPackage(pkg));
 
   const proceedWithUpdateSelected = () => {
     setUIBusy(true, 'update');
@@ -958,20 +1095,15 @@ function handleUpdateSelected() {
     window.electronAPI.upgradePackages(selectedPackages);
   };
 
-  if (selectedSystemPkgs.length > 0) {
-    const warningMsg = `Advertencia: Has seleccionado ${selectedSystemPkgs.length} componente(s) crítico(s) del sistema (ej. ${selectedSystemPkgs[0].name}). La actualización de controladores, runtimes o librerías críticas de Windows puede provocar errores en el equipo. ¿Deseas continuar?`;
-    showConfirmationModal(warningMsg, proceedWithUpdateSelected);
-  } else {
-    proceedWithUpdateSelected();
-  }
+  proceedWithUpdateSelected();
 }
 
 // ─── Update All Packages ───────────────────────────────────────────────────────
 function handleUpdateAll() {
   if (isUpdating) return;
 
-  // Filter packages based on active tab
-  const activePackages = allPackages.filter(pkg => getPackageCategory(pkg) === currentTab);
+  // Filter packages based on active tab (ensuring no system packages)
+  const activePackages = allPackages.filter(pkg => getPackageCategory(pkg) === currentTab && !isSystemPackage(pkg));
 
   if (activePackages.length === 0) {
     showToast('No hay aplicaciones para actualizar en esta pestaña.', 'error');
@@ -1031,25 +1163,21 @@ function handleUpdateAll() {
     })));
   };
 
-  if (currentTab === 'system') {
-    const warningMsg = "Advertencia: Vas a actualizar TODOS los componentes del sistema y runtimes en esta lista. Actualizar dependencias críticas del sistema puede causar inestabilidad en el equipo o fallos inesperados. ¿Deseas continuar?";
-    showConfirmationModal(warningMsg, proceedWithUpdateAll);
-  } else {
-    proceedWithUpdateAll();
-  }
+  proceedWithUpdateAll();
 }
 
 // ─── Update Everything (Global All) ───────────────────────────────────────────
 function handleUpdateEverything() {
   if (isUpdating) return;
-  if (allPackages.length === 0) return;
+  const safePackages = allPackages.filter(pkg => !isSystemPackage(pkg));
+  if (safePackages.length === 0) return;
 
-  const warningMsg = "Advertencia de Seguridad: Vas a actualizar absolutamente todas las aplicaciones disponibles, incluyendo componentes del sistema y redistribuibles de Windows. Esto puede provocar fallos de compatibilidad u otros errores graves en el equipo. ¿Estás seguro de que deseas continuar?";
+  const warningMsg = `Vas a actualizar todas las aplicaciones y juegos detectados (${safePackages.length}).\n\n🛡️ PROTECCIÓN ACTIVA:\nTodos los componentes y librerías del sistema se omiten automáticamente para evitar riesgos de corrupción en Windows.\n\n¿Deseas continuar?`;
 
   showConfirmationModal(warningMsg, () => {
     setUIBusy(true, 'update');
     clearLog();
-    setupProgressTracking(allPackages.length);
+    setupProgressTracking(safePackages.length);
 
     // Clean up previous listeners
     window.electronAPI.removeAllListeners('winget:log');
@@ -1103,7 +1231,6 @@ function bindTabs() {
       currentTab = 'everyday';
       tabEveryday.classList.add('active');
       if (tabGames) tabGames.classList.remove('active');
-      if (tabSystem) tabSystem.classList.remove('active');
       renderPackageTable(filteredPackages);
     });
   }
@@ -1113,17 +1240,6 @@ function bindTabs() {
       currentTab = 'games';
       tabGames.classList.add('active');
       if (tabEveryday) tabEveryday.classList.remove('active');
-      if (tabSystem) tabSystem.classList.remove('active');
-      renderPackageTable(filteredPackages);
-    });
-  }
-  if (tabSystem) {
-    tabSystem.addEventListener('click', () => {
-      if (currentTab === 'system') return;
-      currentTab = 'system';
-      tabSystem.classList.add('active');
-      if (tabEveryday) tabEveryday.classList.remove('active');
-      if (tabGames) tabGames.classList.remove('active');
       renderPackageTable(filteredPackages);
     });
   }
@@ -1175,17 +1291,28 @@ function isSystemPackage(pkg) {
     'microsoft visual c++',
     'c++ redist',
     'vcredist',
+    'visual c++',
     'sql server',
     'driver',
+    'controlador',
     'framework',
     '.net runtime',
     '.net sdk',
+    '.net core',
+    'dotnet',
     'developer pack',
     'directx',
     'windows desktop runtime',
     'microsoft.net',
     'microsoft.aspnetcore',
     'microsoft.windowsdesktop',
+    'microsoft.windowsappsdk',
+    'windows app sdk',
+    'windowsappruntime',
+    'microsoft.windowsappruntime',
+    'microsoft.ui.xaml',
+    'microsoft.vclibs',
+    'vclibs',
     'microsoft.vc',
     'intel(r)',
     'intel corporation',
@@ -1201,7 +1328,21 @@ function isSystemPackage(pkg) {
     'microsoft.visualstudio.workload',
     'opencl',
     'vulkan runtime',
-    'vulkanrt'
+    'vulkanrt',
+    'windows subsystem',
+    'microsoft.edge.webview2',
+    'webview2 runtime',
+    'microsoft edge webview2',
+    'windows sdk',
+    'windows software development kit',
+    'windows driver',
+    'chipset',
+    'touchpad',
+    'bluetooth driver',
+    'audio driver',
+    'wireless driver',
+    'ethernet driver',
+    'display driver'
   ];
   return keywords.some(k => name.includes(k) || id.includes(k) || publisher.includes(k));
 }
@@ -1429,21 +1570,21 @@ function getPackageCategory(pkg) {
 function updateBadges(packages) {
   const everydayCount = packages.filter(pkg => getPackageCategory(pkg) === 'everyday').length;
   const gamesCount    = packages.filter(pkg => getPackageCategory(pkg) === 'games').length;
-  const systemCount   = packages.filter(pkg => getPackageCategory(pkg) === 'system').length;
   if (badgeEveryday) badgeEveryday.textContent = everydayCount;
   if (badgeGames)    badgeGames.textContent = gamesCount;
-  if (badgeSystem)   badgeSystem.textContent = systemCount;
+  if (badgeSystem)   badgeSystem.textContent = '0';
 }
 
 function renderPackageTable(packages) {
   updateBadges(packages);
 
+  if (currentTab === 'system') currentTab = 'everyday';
   const activePackages = packages.filter(pkg => getPackageCategory(pkg) === currentTab);
 
   packageTbody.innerHTML = '';
 
   if (activePackages.length === 0) {
-    const tabName = currentTab === 'games' ? 'juegos' : (currentTab === 'system' ? 'componentes del sistema' : 'aplicaciones cotidianas');
+    const tabName = currentTab === 'games' ? 'juegos' : 'aplicaciones cotidianas';
     packageTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 32px; color: var(--color-text-secondary);">No se encontraron ${tabName} disponibles para actualizar.</td></tr>`;
     syncHeaderCheckbox();
     return;
@@ -1622,9 +1763,148 @@ function setUIBusy(busy, mode = 'update') {
 }
 
 // ─── Status & Progress Bar ───────────────────────────────────────────────────
+function getTranslatedStatusText(text) {
+  if (!text || typeof text !== 'string') return text;
+  if (!window.i18n || !window.i18n.t) return text;
+  
+  const directVal = window.i18n.t(text);
+  if (directVal && directVal !== text) return directVal;
+  
+  const currentLang = window.i18n.currentLang || 'en';
+  
+  const statusDict = {
+    // Updates
+    'Buscando actualizaciones...': { en: 'Checking for updates...', es: 'Buscando actualizaciones...' },
+    'Consultando repositorio de winget...': { en: 'Querying winget repository...', es: 'Consultando repositorio de winget...' },
+    'Sistema al día': { en: 'System up to date', es: 'Sistema al día' },
+    'No se encontraron actualizaciones pendientes': { en: 'No pending updates found', es: 'No se encontraron actualizaciones pendientes' },
+    'Escaneo finalizado': { en: 'Scan completed', es: 'Escaneo finalizado' },
+    'Error al escanear': { en: 'Error scanning', es: 'Error al escanear' },
+    'Exportando software...': { en: 'Exporting software...', es: 'Exportando software...' },
+    'Generando archivo de paquetes JSON con WinGet...': { en: 'Generating JSON package file with WinGet...', es: 'Generando archivo de paquetes JSON con WinGet...' },
+    'Exportación completada': { en: 'Export completed', es: 'Exportación completada' },
+    'Error al exportar': { en: 'Error exporting', es: 'Error al exportar' },
+    'Importando software...': { en: 'Importing software...', es: 'Importando software...' },
+    'Selecciona un archivo JSON de WinGet para restaurar aplicaciones...': { en: 'Select a WinGet JSON file to restore applications...', es: 'Selecciona un archivo JSON de WinGet para restaurar aplicaciones...' },
+    'Importación completada': { en: 'Import completed', es: 'Importación completada' },
+    'Error al importar': { en: 'Error importing', es: 'Error al importar' },
+    
+    // Uninstaller
+    'Escaneando equipo...': { en: 'Scanning system...', es: 'Escaneando equipo...' },
+    'Analizando aplicaciones instaladas, iconos y almacenamiento...': { en: 'Analyzing installed applications, icons, and storage...', es: 'Analizando aplicaciones instaladas, iconos y almacenamiento...' },
+    'Escaneo completo': { en: 'Scan complete', es: 'Escaneo completo' },
+    'No se encontraron aplicaciones instaladas': { en: 'No installed applications found', es: 'No se encontraron aplicaciones instaladas' },
+    'Error al escanear aplicaciones': { en: 'Error scanning applications', es: 'Error al escanear aplicaciones' },
+    'Ejecutando desinstalador oficial...': { en: 'Running official uninstaller...', es: 'Ejecutando desinstalador oficial...' },
+    'Confirma en la ventana del lanzador si aparece...': { en: 'Confirm in the prompt window if prompted...', es: 'Confirma en la ventana del lanzador si aparece...' },
+    'Procediendo con escaneo seguro de residuos...': { en: 'Proceeding with secure leftover scan...', es: 'Procediendo con escaneo seguro de residuos...' },
+    'Buscando y eliminando datos residuales de forma segura...': { en: 'Searching and safely removing leftover data...', es: 'Buscando y eliminando datos residuales de forma segura...' },
+    'Eliminando residuos de forma segura...': { en: 'Safely removing leftovers...', es: 'Eliminando residuos de forma segura...' },
+    'Desinstalación completada': { en: 'Uninstallation completed', es: 'Desinstalación completada' },
+    'Desinstalación finalizada': { en: 'Uninstallation finished', es: 'Desinstalación finalizada' },
+    'Desinstalación no completada': { en: 'Uninstallation not completed', es: 'Desinstalación no completada' },
+    'El desinstalador fue cancelado o falló.': { en: 'Uninstaller was canceled or failed.', es: 'El desinstalador fue cancelado o falló.' },
+    'Preparando siguiente aplicación...': { en: 'Preparing next application...', es: 'Preparando siguiente aplicación...' },
+
+    // GPU
+    'Comprobando GPU...': { en: 'Checking GPU...', es: 'Comprobando GPU...' },
+    'Consultando telemetría de hardware y versiones de controladores...': { en: 'Querying hardware telemetry and driver versions...', es: 'Consultando telemetría de hardware y versiones de controladores...' },
+    'GPU analizada con éxito': { en: 'GPU analyzed successfully', es: 'GPU analizada con éxito' },
+    'Telemetría y estado de controladores actualizados': { en: 'Telemetry and driver status updated', es: 'Telemetría y estado de controladores actualizados' },
+    'Error al detectar GPU': { en: 'Error detecting GPU', es: 'Error al detectar GPU' },
+    'Comprobando actualizaciones...': { en: 'Checking for updates...', es: 'Comprobando actualizaciones...' },
+    'Consultando repositorios oficiales para tu GPU...': { en: 'Querying official repositories for your GPU...', es: 'Consultando repositorios oficiales para tu GPU...' },
+    'Descargando e instalando paquete oficial...': { en: 'Downloading and installing official package...', es: 'Descargando e instalando paquete oficial...' },
+    'Descargando paquete oficial...': { en: 'Downloading official package...', es: 'Descargando paquete oficial...' },
+    'Ejecutando instalador silencioso...': { en: 'Running silent installer...', es: 'Ejecutando instalador silencioso...' },
+    'Instalación con error': { en: 'Installation error', es: 'Instalación con error' },
+
+    // Restore
+    'Consultando puntos de restauración...': { en: 'Querying restore points...', es: 'Consultando puntos de restauración...' },
+    'Leyendo instantáneas del sistema...': { en: 'Reading system snapshots...', es: 'Leyendo instantáneas del sistema...' },
+    'Creando punto de restauración...': { en: 'Creating restore point...', es: 'Creando punto de restauración...' },
+    'Iniciando servicio de instantáneas de Windows (VSS)...': { en: 'Starting Windows Volume Shadow Copy service (VSS)...', es: 'Iniciando servicio de instantáneas de Windows (VSS)...' },
+    'Verificando volumen de protección del sistema...': { en: 'Checking system protection volume...', es: 'Verificando volumen de protección del sistema...' },
+    'Escribiendo catálogo y registrando estado del sistema...': { en: 'Writing catalog and recording system state...', es: 'Escribiendo catálogo y registrando estado del sistema...' },
+    'Finalizando registro de punto de restauración...': { en: 'Finalizing restore point registration...', es: 'Finalizando registro de punto de restauración...' },
+    'Punto de restauración creado': { en: 'Restore point created', es: 'Punto de restauración creado' },
+    'Error al crear punto': { en: 'Error creating restore point', es: 'Error al crear punto' },
+    'Eliminando punto de restauración...': { en: 'Deleting restore point...', es: 'Eliminando punto de restauración...' },
+    'Punto de restauración eliminado': { en: 'Restore point deleted', es: 'Punto de restauración eliminado' },
+    'Purgando puntos de restauración...': { en: 'Purging restore points...', es: 'Purgando puntos de restauración...' },
+    'Eliminando todas las instantáneas de Windows...': { en: 'Deleting all Windows snapshots...', es: 'Eliminando todas las instantáneas de Windows...' },
+    'Liberando espacio en disco de instantáneas VSS...': { en: 'Freeing disk space from VSS snapshots...', es: 'Liberando espacio en disco de instantáneas VSS...' },
+    'Puntos eliminados': { en: 'Points deleted', es: 'Puntos eliminados' },
+    'Todas las instantáneas han sido eliminadas': { en: 'All snapshots have been deleted', es: 'Todas las instantáneas han sido eliminadas' },
+
+    // Default / idle
+    'Listo': { en: 'Ready', es: 'Listo' },
+    'Sistema preparado': { en: 'System ready', es: 'Sistema preparado' },
+    'Operación completada': { en: 'Operation completed', es: 'Operación completada' }
+  };
+
+  if (statusDict[text] && statusDict[text][currentLang]) {
+    return statusDict[text][currentLang];
+  }
+
+  // Dynamic regex replacements for counters
+  const detectedMatch = text.match(/^Se detectaron (\d+) aplicaciones instaladas$/);
+  if (detectedMatch) {
+    return currentLang === 'en' ? `Detected ${detectedMatch[1]} installed applications` : text;
+  }
+  const updatesAvailMatch = text.match(/^(\d+) actualización\(es\) disponible\(s\)$/);
+  if (updatesAvailMatch) {
+    return currentLang === 'en' ? `${updatesAvailMatch[1]} update(s) available` : text;
+  }
+  const uninstMatch = text.match(/^Desinstalando \((\d+\/\d+)\): (.+)$/);
+  if (uninstMatch) {
+    return currentLang === 'en' ? `Uninstalling (${uninstMatch[1]}): ${uninstMatch[2]}` : text;
+  }
+  const cleanMatch = text.match(/^Limpiando \((\d+\/\d+)\): (.+)$/);
+  if (cleanMatch) {
+    return currentLang === 'en' ? `Cleaning (${cleanMatch[1]}): ${cleanMatch[2]}` : text;
+  }
+  const compMatch = text.match(/^Completado \((\d+\/\d+)\): (.+)$/);
+  if (compMatch) {
+    return currentLang === 'en' ? `Completed (${compMatch[1]}): ${compMatch[2]}` : text;
+  }
+  const uninstSingleMatch = text.match(/^Desinstalando (.+)\.\.\.$/);
+  if (uninstSingleMatch) {
+    return currentLang === 'en' ? `Uninstalling ${uninstSingleMatch[1]}...` : text;
+  }
+  const cleanSingleMatch = text.match(/^Limpiando residuos de (.+)\.\.\.$/);
+  if (cleanSingleMatch) {
+    return currentLang === 'en' ? `Cleaning leftovers for ${cleanSingleMatch[1]}...` : text;
+  }
+  const instMatch = text.match(/^Instalando:? (.+)\.\.\.$/);
+  if (instMatch) {
+    return currentLang === 'en' ? `Installing ${instMatch[1]}...` : text;
+  }
+  const updatedMatch = text.match(/^Actualizado: (.+)$/);
+  if (updatedMatch) {
+    return currentLang === 'en' ? `Updated: ${updatedMatch[1]}` : text;
+  }
+  const procMatch = text.match(/^Se procesaron las (\d+) aplicaciones seleccionadas\.$/);
+  if (procMatch) {
+    return currentLang === 'en' ? `Processed all ${procMatch[1]} selected applications.` : text;
+  }
+  const snapMatch = text.match(/^Instantánea creada: (.+)$/);
+  if (snapMatch) {
+    return currentLang === 'en' ? `Snapshot created: ${snapMatch[1]}` : text;
+  }
+  const delSnapMatch = text.match(/^Instantánea #(\d+) eliminada con éxito$/);
+  if (delSnapMatch) {
+    return currentLang === 'en' ? `Snapshot #${delSnapMatch[1]} deleted successfully` : text;
+  }
+
+  return text;
+}
+
 function setStatusBar(title, subtitle = '', pct = null, status = 'idle') {
-  if (progressText) progressText.textContent = title;
-  if (statusSubtext) statusSubtext.textContent = subtitle;
+  const displayTitle = getTranslatedStatusText(title);
+  const displaySubtitle = getTranslatedStatusText(subtitle);
+  if (progressText) progressText.textContent = displayTitle;
+  if (statusSubtext) statusSubtext.textContent = displaySubtitle;
   
   if (statusIndicator) {
     statusIndicator.className = 'status-indicator';
@@ -1664,13 +1944,25 @@ function setStatusBar(title, subtitle = '', pct = null, status = 'idle') {
   }
 }
 
-function resetStatusBar(message = 'Listo', sub = 'Sistema preparado') {
-  setStatusBar(message, sub, null, 'idle');
+function resetStatusBar(message, sub) {
+  const readyText = window.i18n ? window.i18n.t('status_ready') : 'Ready';
+  const prepText = window.i18n ? window.i18n.t('status_prepared') : 'System prepared';
+  setStatusBar(message || readyText, sub || prepText, null, 'idle');
   if (progressBar) {
     progressBar.classList.remove('indeterminate');
     progressBar.style.transition = 'none';
     progressBar.style.width = '0%';
     void progressBar.offsetWidth;
+  }
+  if (btnStatusQueueToggle) {
+    btnStatusQueueToggle.classList.add('hidden');
+  }
+  if (statusQueueLabel) {
+    const queueWord = window.i18n ? window.i18n.t('queue_word') : 'Queue';
+    statusQueueLabel.textContent = `${queueWord} (0)`;
+  }
+  if (queueDrawer) {
+    queueDrawer.classList.add('hidden');
   }
 }
 
@@ -1968,6 +2260,20 @@ function updateInstalledSelectionStats() {
     btnUninstallSelectedTop.disabled = count === 0 || isUpdating;
   }
 
+  const uninstSpan = document.getElementById('uninstall-selected-span');
+  if (uninstSpan && window.i18n) {
+    const rawLabel = window.i18n.t('btn_uninstall_selected_label', { count: '__COUNT__' });
+    uninstSpan.innerHTML = rawLabel.replace('__COUNT__', `<span id="installed-selected-count">${count}</span>`);
+  }
+
+  if (btnUninstallSelectedTop && window.i18n) {
+    const span = btnUninstallSelectedTop.querySelector('span');
+    if (span) {
+      const topWord = window.i18n.t('btn_uninstall_top');
+      span.innerHTML = `${topWord} (<span id="installed-selected-count-top">${count}</span>)`;
+    }
+  }
+
   const chkAllInstalledHeader = document.getElementById('chk-all-installed-header');
   if (chkAllInstalledHeader) {
     const activeApps = allInstalledApps.filter(app => getPackageCategory(app) === currentInstalledTab);
@@ -2071,6 +2377,15 @@ async function handleScanInstalled() {
 function renderInstalledAppsTable(apps) {
   const installedAppsTbody = document.getElementById('installed-apps-tbody');
   if (!installedAppsTbody) return;
+
+  const systemWarningBanner = document.getElementById('installed-system-warning-banner');
+  if (systemWarningBanner) {
+    if (currentInstalledTab === 'system') {
+      systemWarningBanner.classList.remove('hidden');
+    } else {
+      systemWarningBanner.classList.add('hidden');
+    }
+  }
 
   // Calculate counts for badges
   const everydayCount = apps.filter(app => getPackageCategory(app) === 'everyday').length;
@@ -2190,14 +2505,18 @@ function handleUninstallClean(app) {
   const isEpic = uninstStr.includes('com.epicgames.launcher') || installLoc.includes('\\epic games\\') || (app.id && app.id.toLowerCase().startsWith('epicgames.'));
   const isSteam = uninstStr.includes('steam://') || uninstStr.includes('steam.exe') || (app.id && app.id.toLowerCase().startsWith('steam app '));
 
-  let warningMsg = `⚠️ ADVERTENCIA DE SEGURIDAD\n\n¿Estás seguro de que deseas desinstalar de forma limpia "${app.name}"?\n\n• Se ejecutará el desinstalador oficial del programa.\n• Se buscarán y limpiarán de forma segura los residuos huérfanos específicos de esta aplicación.`;
+  let warningMsg = window.i18n ? window.i18n.t('confirm_uninstall_single_msg', { name: app.name }) : `⚠️ SECURITY WARNING\n\nAre you sure you want to cleanly uninstall "${app.name}"?`;
+  let countdownSec = 5;
+  let confirmBtnText = window.i18n ? window.i18n.t('confirm_uninstall_btn') : 'Confirm Uninstall';
 
-  if (isEpic) {
-    warningMsg = `🎮 DESINSTALACIÓN DE JUEGO (Epic Games)\n\n¿Deseas desinstalar "${app.name}"?\n\n• Se abrirá Epic Games Launcher para retirar el juego.\n• 🛡️ ESCUDO ACTIVO: Epic Games Launcher y el resto de tu biblioteca están completamente protegidos.\n• Se limpiarán únicamente datos residuales específicos de "${app.name}".`;
+  if (isSys) {
+    warningMsg = window.i18n ? window.i18n.t('confirm_uninstall_single_sys_msg', { name: app.name }) : warningMsg;
+    countdownSec = 7;
+    confirmBtnText = window.i18n ? window.i18n.t('confirm_uninstall_sys_btn') : 'Uninstall Component';
+  } else if (isEpic) {
+    warningMsg = window.i18n ? window.i18n.t('confirm_uninstall_single_epic_msg', { name: app.name }) : warningMsg;
   } else if (isSteam) {
-    warningMsg = `🎮 DESINSTALACIÓN DE JUEGO (Steam)\n\n¿Deseas desinstalar "${app.name}"?\n\n• Se abrirá el protocolo de Steam para retirar el juego.\n• 🛡️ ESCUDO ACTIVO: El cliente Steam y tus demás juegos están completamente protegidos.\n• Se limpiarán únicamente residuos propios de "${app.name}".`;
-  } else if (isSys) {
-    warningMsg += `\n\n🔴 PRECAUCIÓN: Este es un componente del sistema o controlador. Desinstalarlo podría afectar el funcionamiento de Windows.`;
+    warningMsg = window.i18n ? window.i18n.t('confirm_uninstall_single_steam_msg', { name: app.name }) : warningMsg;
   }
 
   showConfirmationModal(warningMsg, () => {
@@ -2257,10 +2576,10 @@ function handleUninstallClean(app) {
         updateInstalledSelectionStats();
 
         setStatusBar('Desinstalación completada', `Se retiró ${app.name} y sus residuos de forma segura.`, 100, 'idle');
-        showToast(`Se desinstaló ${app.name} correctamente.`, 'success');
+        showToast(window.i18n ? window.i18n.t('toast_uninstall_success', { name: app.name }) : `Se desinstaló ${app.name} correctamente.`, 'success');
       } else {
         setStatusBar('Desinstalación no completada', 'El desinstalador fue cancelado o falló.', 0, 'error');
-        showToast('La desinstalación falló o fue cancelada.', 'error');
+        showToast(window.i18n ? window.i18n.t('toast_uninstall_failed') : 'La desinstalación falló o fue cancelada.', 'error');
       }
     };
 
@@ -2272,7 +2591,7 @@ function handleUninstallClean(app) {
       ...app,
       createRestorePoint: shouldCreateRestorePoint()
     });
-  }, 5, 'Confirmar Desinstalación');
+  }, countdownSec, confirmBtnText);
 }
 
 // ─── Batch Clean Uninstall Action ────────────────────────────────────────────
@@ -2281,18 +2600,27 @@ function handleUninstallSelected() {
 
   const selectedApps = getSelectedInstalledApps();
   if (selectedApps.length === 0) {
-    showToast('Selecciona al menos una aplicación para desinstalar.', 'error');
+    showToast(window.i18n ? window.i18n.t('toast_select_at_least_one') : 'Selecciona al menos una aplicación para desinstalar.', 'error');
     return;
   }
 
   const count = selectedApps.length;
   const appListStr = selectedApps.map(a => `• ${a.name} (${a.sizeMb >= 1024 ? (a.sizeMb / 1024).toFixed(1) + ' GB' : a.sizeMb + ' MB'})`).slice(0, 10).join('\n');
-  const moreCountStr = selectedApps.length > 10 ? `\n... y ${selectedApps.length - 10} aplicaciones más` : '';
+  const moreCountStr = selectedApps.length > 10 ? (window.i18n ? window.i18n.t('confirm_uninstall_more_count', { count: selectedApps.length - 10 }) : `\n... y ${selectedApps.length - 10} aplicaciones más`) : '';
   const hasSystem = selectedApps.some(a => isSystemPackage(a));
 
-  const warningMsg = count === 1
-    ? `⚠️ ADVERTENCIA DE DESINSTALACIÓN\n\n¿Estás seguro de que deseas desinstalar de forma limpia la aplicación "${selectedApps[0].name}"?\n\n• Se ejecutará el desinstalador oficial del programa.\n• 🛡️ ESCUDO ACTIVO: Todos los lanzadores (Epic Games, Steam, EA, Ubisoft) y componentes compartidos están blindados.\n• Se limpiarán únicamente los residuos huérfanos específicos de esta aplicación.${hasSystem ? '\n\n🔴 ATENCIÓN: Has seleccionado un componente del sistema o controlador sensible.' : ''}`
-    : `⚠️ ADVERTENCIA DE DESINSTALACIÓN EN LOTE (5s)\n\n¿Estás seguro de que deseas desinstalar de forma limpia las siguientes ${selectedApps.length} aplicaciones seleccionadas?\n\n${appListStr}${moreCountStr}\n\n• Se ejecutarán los desinstaladores de cada programa de forma secuencial.\n• 🛡️ ESCUDO ACTIVO: Todos los lanzadores (Epic Games, Steam, EA, Ubisoft) y componentes compartidos están blindados.\n• Se limpiarán únicamente los residuos huérfanos específicos de cada aplicación.${hasSystem ? '\n\n🔴 ATENCIÓN: Has seleccionado componentes del sistema o controladores sensibles.' : ''}`;
+  let warningMsg = count === 1
+    ? (window.i18n ? window.i18n.t('confirm_uninstall_batch_single_msg', { name: selectedApps[0].name }) : '')
+    : (window.i18n ? window.i18n.t('confirm_uninstall_batch_multi_msg', { count: selectedApps.length, list: appListStr, more: moreCountStr }) : '');
+
+  let countdown = 5;
+  let confirmBtnText = window.i18n ? window.i18n.t('confirm_uninstall_btn') : 'Confirmar Desinstalación';
+
+  if (hasSystem) {
+    warningMsg = window.i18n ? window.i18n.t('confirm_uninstall_batch_sys_msg', { list: appListStr, more: moreCountStr }) : warningMsg;
+    countdown = 7;
+    confirmBtnText = window.i18n ? window.i18n.t('confirm_uninstall_batch_sys_btn') : 'Desinstalar Componentes del Sistema';
+  }
 
   showConfirmationModal(warningMsg, async () => {
     isUpdating = true;
@@ -2372,7 +2700,7 @@ function handleUninstallSelected() {
     updateInstalledSelectionStats();
     setStatusBar('Desinstalación finalizada', `Se procesaron las ${total} aplicaciones seleccionadas.`, 100, 'idle');
     showToast(`Se han desinstalado ${total} aplicación(es) limpiamente.`, 'success');
-  }, 5, 'Confirmar Desinstalación');
+  }, countdown, confirmBtnText);
 }
 
 // ─── GPU & Graphics Control Panel Logic ──────────────────────────────────────
@@ -2603,24 +2931,26 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
     vendorTag.textContent = isNvidia ? 'NVIDIA GeForce RTX' : (isAmd ? 'AMD Radeon' : (isIntel ? 'Intel Arc / Iris' : 'GPU'));
   }
 
+  const isEs = window.i18n && window.i18n.currentLang === 'es';
+
   const mainName = document.getElementById('gpu-detail-name');
   if (mainName) mainName.textContent = primaryGpu.Name;
 
   const archLabel = document.getElementById('gpu-detail-arch');
   if (archLabel) {
-    archLabel.textContent = `${primaryGpu.VideoProcessor || primaryGpu.Name} • Controladores Oficiales Activos`;
+    archLabel.textContent = `${primaryGpu.VideoProcessor || primaryGpu.Name} • ${isEs ? 'Controladores Oficiales Activos' : 'Active Official Drivers'}`;
   }
 
   // Driver Version string
   const rawDriver = primaryGpu.RawDriverVersion || primaryGpu.DriverVersion || '';
   const smi = primaryGpu.NvidiaSmi;
-  const driverDisplay = smi?.DriverVersion ? `v${smi.DriverVersion} Game Ready (WHQL)` : `v${rawDriver} (Certificado)`;
+  const driverDisplay = smi?.DriverVersion ? `v${smi.DriverVersion} Game Ready (WHQL)` : `v${rawDriver} (${isEs ? 'Certificado' : 'Certified'})`;
 
   const driverBadge = document.getElementById('gpu-driver-ver-badge');
   if (driverBadge) {
     if (gpuUpdatePackage) {
       driverBadge.className = 'gpu-driver-ver-badge badge-update';
-      driverBadge.textContent = `${driverDisplay} (Actualización v${gpuUpdatePackage.availableVersion || ''} lista)`;
+      driverBadge.textContent = `${driverDisplay} (${isEs ? `Actualización v${gpuUpdatePackage.availableVersion || ''} lista` : `Update v${gpuUpdatePackage.availableVersion || ''} ready`})`;
     } else {
       driverBadge.className = 'gpu-driver-ver-badge';
       driverBadge.textContent = driverDisplay;
@@ -2629,14 +2959,14 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
 
   const driverDate = document.getElementById('gpu-driver-date');
   if (driverDate) {
-    let dText = primaryGpu.DriverDate ? `Fecha: ${primaryGpu.DriverDate.split(' ')[0]}` : 'Al día';
+    let dText = primaryGpu.DriverDate ? `${isEs ? 'Fecha' : 'Date'}: ${primaryGpu.DriverDate.split(' ')[0]}` : (isEs ? 'Al día' : 'Up to date');
     driverDate.textContent = dText;
   }
 
   const driverSubtext = document.getElementById('gpu-driver-status-subtext');
   if (driverSubtext) {
     if (gpuUpdatePackage) {
-      driverSubtext.innerHTML = `⚠️ <strong>Hay una nueva versión oficial disponible para tu tarjeta gráfica.</strong> <a href="#" id="link-back-to-update" style="color: var(--color-accent); text-decoration: underline; margin-left: 8px; cursor: pointer; font-weight: 600;">Ver instalador de actualización →</a>`;
+      driverSubtext.innerHTML = `⚠️ <strong>${isEs ? 'Hay una nueva versión oficial disponible para tu tarjeta gráfica.' : 'A new official driver update is available for your GPU.'}</strong> <a href="#" id="link-back-to-update" style="color: var(--color-accent); text-decoration: underline; margin-left: 8px; cursor: pointer; font-weight: 600;">${isEs ? 'Ver instalador de actualización →' : 'View update installer →'}</a>`;
       const linkBack = document.getElementById('link-back-to-update');
       if (linkBack) {
         linkBack.onclick = (e) => {
@@ -2648,36 +2978,36 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
         };
       }
     } else {
-      driverSubtext.textContent = 'Tu tarjeta gráfica dispone de los controladores oficiales más recientes y compatibles con aceleración de trazado de rayos, DLSS/FSR y DirectX 12 Ultimate.';
+      driverSubtext.textContent = isEs ? 'Tu tarjeta gráfica dispone de los controladores oficiales más recientes y compatibles con aceleración de trazado de rayos, DLSS/FSR y DirectX 12 Ultimate.' : 'Your graphics card has the latest official drivers compatible with Ray Tracing acceleration, DLSS/FSR, and DirectX 12 Ultimate.';
     }
   }
 
   // Active Control Panel detection
-  let cplName = 'Panel de Control de Pantalla';
-  let cplSub = 'Configuración de Windows';
+  let cplName = isEs ? 'Panel de Control de Pantalla' : 'Display Control Panel';
+  let cplSub = isEs ? 'Configuración de Windows' : 'Windows Settings';
   let cplAppId = 'ms-settings:display';
 
   if (isNvidia) {
     if (status.NvidiaControlPanel) {
       cplName = 'NVIDIA Control Panel';
-      cplSub = `v${status.NvidiaControlPanelVersion || '8.1.969.0'} (Oficial DCH)`;
+      cplSub = `v${status.NvidiaControlPanelVersion || '8.1.969.0'} (${isEs ? 'Oficial DCH' : 'Official DCH'})`;
       cplAppId = status.NvidiaControlPanelAppId || 'NVIDIACorp.NVIDIAControlPanel_56jybvy8sckqj!NVIDIACorp.NVIDIAControlPanel';
     } else if (status.NvidiaApp) {
       cplName = 'NVIDIA App';
-      cplSub = `v${status.NvidiaAppVersion || '1.0'} (Moderna)`;
+      cplSub = `v${status.NvidiaAppVersion || '1.0'} (${isEs ? 'Moderna' : 'Modern'})`;
       cplAppId = status.NvidiaAppAppId;
     } else if (status.GeForceExperience) {
       cplName = 'GeForce Experience';
-      cplSub = 'Suite de Juegos';
+      cplSub = isEs ? 'Suite de Juegos' : 'Gaming Suite';
       cplAppId = 'C:\\Program Files\\NVIDIA Corporation\\NVIDIA GeForce Experience\\NVIDIA GeForce Experience.exe';
     }
   } else if (isAmd && status.AmdRadeonSoftware) {
     cplName = 'AMD Software: Adrenalin';
-    cplSub = 'Suite Oficial AMD';
+    cplSub = isEs ? 'Suite Oficial AMD' : 'Official AMD Suite';
     cplAppId = 'AMD:RadeonSoftware';
   } else if (isIntel && status.IntelArcControl) {
     cplName = 'Intel Arc Control';
-    cplSub = 'Suite Oficial Intel';
+    cplSub = isEs ? 'Suite Oficial Intel' : 'Official Intel Suite';
     cplAppId = 'Intel:ArcControl';
   }
 
@@ -2685,7 +3015,7 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   const btnLaunchHero = document.getElementById('btn-launch-cpl-hero');
   const btnLaunchText = document.getElementById('btn-launch-cpl-text');
   if (btnLaunchHero && btnLaunchText) {
-    btnLaunchText.textContent = `Abrir ${cplName}`;
+    btnLaunchText.textContent = `${isEs ? 'Abrir' : 'Open'} ${cplName}`;
     btnLaunchHero.onclick = () => handleLaunchGpuApp(cplAppId, cplName);
   }
 
@@ -2700,7 +3030,7 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   const metricVramUsed = document.getElementById('metric-vram-used');
   const metricVramBar = document.getElementById('metric-vram-bar');
   if (metricVramTotal) metricVramTotal.textContent = `${vramTotalGb} GB`;
-  if (metricVramUsed) metricVramUsed.textContent = vramUsedMb > 0 ? `${vramUsedGb} GB en uso` : 'Memoria dedicada activa';
+  if (metricVramUsed) metricVramUsed.textContent = vramUsedMb > 0 ? `${vramUsedGb} GB ${isEs ? 'en uso' : 'in use'}` : (isEs ? 'Memoria dedicada activa' : 'Active dedicated memory');
   if (metricVramBar) metricVramBar.style.width = `${Math.max(8, vramPct)}%`;
 
   // Metric 2: Temperature
@@ -2715,23 +3045,23 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   if (metricTempPill) {
     if (!hasTempSensor) {
       metricTempPill.className = 'metric-status-pill';
-      metricTempPill.textContent = 'Sensor N/D';
+      metricTempPill.textContent = isEs ? 'Sensor N/D' : 'No sensor';
     } else if (tempNum < 55) {
       metricTempPill.className = 'metric-status-pill pill-cool';
-      metricTempPill.textContent = 'Fresca';
+      metricTempPill.textContent = isEs ? 'Fresca' : 'Cool';
     } else if (tempNum < 75) {
       metricTempPill.className = 'metric-status-pill pill-good';
-      metricTempPill.textContent = 'Óptima';
+      metricTempPill.textContent = isEs ? 'Óptima' : 'Optimal';
     } else {
       metricTempPill.className = 'metric-status-pill badge-update';
-      metricTempPill.textContent = 'Cálida';
+      metricTempPill.textContent = isEs ? 'Cálida' : 'Warm';
     }
   }
 
   // Metric 3: Power
   const hasPowerSensor = smi && typeof smi.PowerDrawW === 'number' && smi.PowerDrawW > 0;
   const powerVal = hasPowerSensor ? `${Math.round(smi.PowerDrawW)} W` : '—';
-  const powerLimit = smi?.PowerLimitW ? `/ ${Math.round(smi.PowerLimitW)} W TGP` : (hasPowerSensor ? 'TGP Dinámico' : '—');
+  const powerLimit = smi?.PowerLimitW ? `/ ${Math.round(smi.PowerLimitW)} W TGP` : (hasPowerSensor ? (isEs ? 'TGP Dinámico' : 'Dynamic TGP') : '—');
   const powerPct = hasPowerSensor && smi?.PowerLimitW ? Math.round((smi.PowerDrawW / smi.PowerLimitW) * 100) : (hasPowerSensor ? 10 : 0);
   const metricPowerVal = document.getElementById('metric-power-val');
   const metricPowerLimit = document.getElementById('metric-power-limit');
@@ -2745,13 +3075,13 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   const utilPct = hasUtilSensor ? smi.GpuUtilPct : null;
   const metricUtilVal = document.getElementById('metric-util-val');
   const metricUtilBar = document.getElementById('metric-util-bar');
-  if (metricUtilVal) metricUtilVal.textContent = hasUtilSensor ? `${utilPct} %` : 'Activo';
+  if (metricUtilVal) metricUtilVal.textContent = hasUtilSensor ? `${utilPct} %` : (isEs ? 'Activo' : 'Active');
   if (metricUtilBar) metricUtilBar.style.width = hasUtilSensor ? `${Math.max(4, utilPct)}%` : '15%';
 
   // Metric 5: Display
   const resX = primaryGpu.ResolutionX || window.screen.width;
   const resY = primaryGpu.ResolutionY || window.screen.height;
-  const hz = primaryGpu.RefreshRate ? `@ ${primaryGpu.RefreshRate} Hz` : 'Frecuencia estándar';
+  const hz = primaryGpu.RefreshRate ? `@ ${primaryGpu.RefreshRate} Hz` : (isEs ? 'Frecuencia estándar' : 'Standard refresh rate');
   const metricDisplayRes = document.getElementById('metric-display-res');
   const metricDisplayHz = document.getElementById('metric-display-hz');
   if (metricDisplayRes) metricDisplayRes.textContent = `${resX} × ${resY}`;
@@ -2764,6 +3094,7 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   if (metricCplName) metricCplName.textContent = cplName;
   if (metricCplSub) metricCplSub.textContent = cplSub;
   if (btnQuickOpenCpl) {
+    btnQuickOpenCpl.textContent = isEs ? 'Abrir' : 'Open';
     btnQuickOpenCpl.onclick = () => handleLaunchGpuApp(cplAppId, cplName);
   }
 
@@ -2812,128 +3143,155 @@ function renderNoDriverInstallSuites(isNvidia, isAmd, isIntel, status) {
 
 // ─── BUILD SUITES MODEL ──────────────────────────────────────────────────────
 function buildGpuSuites(isNvidia, isAmd, isIntel, status) {
+  const isEs = window.i18n && window.i18n.currentLang === 'es';
   const suites = [];
 
   if (isNvidia) {
     suites.push({
       id: 'nvidia-app',
       name: 'NVIDIA App',
-      subtitle: 'Suite Moderna Todo-en-Uno (Recomendada)',
+      subtitle: isEs ? 'Suite Moderna Todo-en-Uno (Recomendada)' : 'Modern All-in-One Suite (Recommended)',
       pkgId: 'XP8CLZL93F5Z4P',
       source: 'msstore',
       isInstalled: !!status.NvidiaApp,
       version: status.NvidiaAppVersion || '',
       appId: status.NvidiaAppAppId,
       recommended: true,
-      badgeText: 'Recomendado',
+      badgeText: isEs ? 'Recomendado' : 'Recommended',
       iconSvg: NVIDIA_LOGO_SVG,
-      desc: 'El centro unificado oficial de NVIDIA. Integra el Panel de Control, optimización de juegos, overlay moderno de telemetría y drivers Game Ready certificados.',
-      features: [
+      desc: isEs ? 'El centro unificado oficial de NVIDIA. Integra el Panel de Control, optimización de juegos, overlay moderno de telemetría y drivers Game Ready certificados.' : 'NVIDIA official unified center. Integrates Control Panel, game optimization, modern telemetry overlay, and certified Game Ready drivers.',
+      features: isEs ? [
         'Centro de control moderno y optimizado',
         'Drivers Game Ready con instalación asistida',
         'Overlay de telemetría de FPS, latencia y GPU',
         'Filtros RTX HDR y optimización automática'
+      ] : [
+        'Modern, optimized control center',
+        'Game Ready drivers with assisted installation',
+        'FPS, latency, and GPU telemetry overlay',
+        'RTX HDR filters and automatic game tuning'
       ]
     });
 
     suites.push({
       id: 'nvidia-control-panel',
       name: 'NVIDIA Control Panel',
-      subtitle: 'Panel de Control Clásico (DCH)',
+      subtitle: isEs ? 'Panel de Control Clásico (DCH)' : 'Classic Control Panel (DCH)',
       pkgId: '9NF8H0H7WMLT',
       source: 'msstore',
       isInstalled: !!status.NvidiaControlPanel,
       version: status.NvidiaControlPanelVersion || '',
       appId: status.NvidiaControlPanelAppId || 'NVIDIACorp.NVIDIAControlPanel_56jybvy8sckqj!NVIDIACorp.NVIDIAControlPanel',
       recommended: false,
-      badgeText: 'Oficial DCH',
+      badgeText: isEs ? 'Oficial DCH' : 'Official DCH',
       iconSvg: NVIDIA_LOGO_SVG,
-      desc: 'Panel de control tradicional de bajo consumo. Diseñado para ajustes precisos de resolución, frecuencias de refresco, G-Sync, modo de latencia ultra baja y perfiles 3D.',
-      features: [
+      desc: isEs ? 'Panel de control tradicional de bajo consumo. Diseñado para ajustes precisos de resolución, frecuencias de refresco, G-Sync, modo de latencia ultra baja y perfiles 3D.' : 'Traditional lightweight control panel. Designed for precise adjustments of resolution, refresh rates, G-Sync, ultra-low latency mode, and 3D profiles.',
+      features: isEs ? [
         'Ajustes 3D globales y gestión de energía',
         'G-Sync, resoluciones nativas y personalizadas',
         'Control de profundidad de color y rango dinámico',
         'Cero consumo de recursos en segundo plano'
+      ] : [
+        'Global 3D settings and power management',
+        'G-Sync, native and custom resolutions',
+        'Color depth and dynamic range controls',
+        'Zero background resource overhead'
       ]
     });
 
     suites.push({
       id: 'nvcleanstall',
       name: 'NVCleanstall',
-      subtitle: 'Instalador de Drivers Limpios (TechPowerUp)',
+      subtitle: isEs ? 'Instalador de Drivers Limpios (TechPowerUp)' : 'Clean Driver Installer (TechPowerUp)',
       pkgId: 'TechPowerUp.NVCleanstall',
       source: 'winget',
       isInstalled: !!status.NVCleanstall,
       version: '',
       appId: '',
       recommended: false,
-      badgeText: 'Sin Telemetría',
+      badgeText: isEs ? 'Sin Telemetría' : 'No Telemetry',
       iconSvg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>',
-      desc: 'Herramienta que permite personalizar la instalación de drivers NVIDIA eliminando toda la telemetría y componentes redundantes para máxima estabilidad.',
-      features: [
+      desc: isEs ? 'Herramienta que permite personalizar la instalación de drivers NVIDIA eliminando toda la telemetría y componentes redundantes para máxima estabilidad.' : 'Customizes NVIDIA driver installation by stripping out all telemetry and redundant components for maximum stability.',
+      features: isEs ? [
         'Elimina telemetría y servicios innecesarios',
         'Instalación ligera orientada al gaming competitivo',
         'Control total de componentes a incluir'
+      ] : [
+        'Strips telemetry and unnecessary services',
+        'Lightweight installation optimized for competitive gaming',
+        'Full control over package components to include'
       ]
     });
 
     suites.push({
       id: 'profile-inspector',
       name: 'NVIDIA Profile Inspector',
-      subtitle: 'Ajustes Ocultos y Modding de Drivers',
+      subtitle: isEs ? 'Ajustes Ocultos y Modding de Drivers' : 'Hidden Driver Settings & Modding',
       pkgId: 'Orbmu2k.nvidiaProfileInspector',
       source: 'winget',
       isInstalled: !!status.ProfileInspector,
       version: '',
       appId: '',
       recommended: false,
-      badgeText: 'Avanzado',
+      badgeText: isEs ? 'Avanzado' : 'Advanced',
       iconSvg: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
-      desc: 'Herramienta para entusiastas que permite acceder y modificar variables ocultas del driver, forzado de ReBAR y límites de FPS globales.',
-      features: [
+      desc: isEs ? 'Herramienta para entusiastas que permite acceder y modificar variables ocultas del driver, forzado de ReBAR y límites de FPS globales.' : 'Enthusiast tool granting access to hidden driver variables, Resizable BAR forcing, and global frame limiters.',
+      features: isEs ? [
         'Perfiles internos y variables ocultas de NVIDIA',
         'Forzado de Resizable BAR en cualquier juego',
         'Sincronización vertical profunda y límites de FPS'
+      ] : [
+        'Internal NVIDIA driver profiles and hidden flags',
+        'Force Resizable BAR across any game',
+        'Deep vertical sync settings and frame rate caps'
       ]
     });
   } else if (isAmd) {
     suites.push({
       id: 'amd-adrenalin',
       name: 'AMD Software: Adrenalin Edition',
-      subtitle: 'Suite Oficial de Control y Rendimiento',
+      subtitle: isEs ? 'Suite Oficial de Control y Rendimiento' : 'Official Performance & Control Suite',
       pkgId: 'AMD.RadeonSoftware',
       source: 'winget',
       isInstalled: !!status.AmdRadeonSoftware,
       version: '',
       appId: '',
       recommended: true,
-      badgeText: 'Recomendado',
+      badgeText: isEs ? 'Recomendado' : 'Recommended',
       iconSvg: AMD_LOGO_SVG,
-      desc: 'Centro de control oficial de AMD con soporte para Radeon Super Resolution (RSR), Anti-Lag, control de ventiladores y overclocking de GPU.',
-      features: [
+      desc: isEs ? 'Centro de control oficial de AMD con soporte para Radeon Super Resolution (RSR), Anti-Lag, control de ventiladores y overclocking de GPU.' : 'AMD official control center with support for Radeon Super Resolution (RSR), Anti-Lag, fan curves, and GPU tuning.',
+      features: isEs ? [
         'Radeon Super Resolution y Radeon Boost',
         'Monitor de telemetría y rendimiento en tiempo real',
         'Ajuste de perfiles por juego y perfiles de ventilación'
+      ] : [
+        'Radeon Super Resolution & Radeon Boost',
+        'Real-time telemetry and hardware monitoring',
+        'Per-game tuning and custom fan profiles'
       ]
     });
   } else if (isIntel) {
     suites.push({
       id: 'intel-arc-control',
       name: 'Intel Arc Control',
-      subtitle: 'Panel de Control y Drivers Intel',
+      subtitle: isEs ? 'Panel de Control y Drivers Intel' : 'Intel Drivers & Control Panel',
       pkgId: 'Intel.ArcControl',
       source: 'winget',
       isInstalled: !!status.IntelArcControl,
       version: '',
       appId: '',
       recommended: true,
-      badgeText: 'Recomendado',
+      badgeText: isEs ? 'Recomendado' : 'Recommended',
       iconSvg: INTEL_LOGO_SVG,
-      desc: 'Suite oficial de Intel para tarjetas gráficas Intel Arc e Iris Xe con monitorización en vivo y optimización.',
-      features: [
+      desc: isEs ? 'Suite oficial de Intel para tarjetas gráficas Intel Arc e Iris Xe con monitorización en vivo y optimización.' : 'Official Intel suite for Intel Arc and Iris Xe graphics cards with live monitoring and driver updates.',
+      features: isEs ? [
         'Actualizaciones automáticas de controladores Intel',
         'Overlay de rendimiento y telemetría',
         'Captura y transmisión de partidas'
+      ] : [
+        'Automatic Intel driver updates',
+        'Performance overlay and telemetry',
+        'Live gameplay capture and streaming'
       ]
     });
   }
@@ -2945,6 +3303,12 @@ function buildGpuSuites(isNvidia, isAmd, isIntel, status) {
 function renderSuiteCardsToGrid(grid, suites) {
   if (!grid) return;
   grid.innerHTML = '';
+
+  const openPanelText = window.i18n ? window.i18n.t('suite_open_panel') : 'Open Panel';
+  const reinstallText = window.i18n ? window.i18n.t('suite_reinstall') : 'Reinstall';
+  const installText = window.i18n ? window.i18n.t('suite_install') : 'Install';
+  const installedBadgeText = window.i18n ? window.i18n.t('suite_installed_badge') : 'Installed';
+  const notInstalledBadgeText = window.i18n ? window.i18n.t('suite_not_installed_badge') : 'Not installed';
 
   suites.forEach((suite) => {
     const card = document.createElement('div');
@@ -2966,27 +3330,27 @@ function renderSuiteCardsToGrid(grid, suites) {
       actionButtonsHtml = `
         ${suite.appId ? `<button class="btn btn-accent btn-launch-gpu" data-appid="${sanitize(suite.appId)}" data-name="${sanitize(suite.name)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span>Abrir Panel</span>
+          <span>${openPanelText}</span>
         </button>` : ''}
         <button class="btn btn-ghost btn-install-gpu" data-id="${sanitize(suite.id)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-          <span>Reinstalar</span>
+          <span>${reinstallText}</span>
         </button>
       `;
     } else {
       actionButtonsHtml = `
         <button class="btn btn-primary btn-install-gpu" data-id="${sanitize(suite.id)}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          <span>Instalar ${sanitize(suite.name)}</span>
+          <span>${installText} ${sanitize(suite.name)}</span>
         </button>
       `;
     }
 
     let statusBadgeHtml = '';
     if (suite.isInstalled) {
-      statusBadgeHtml = `<span class="card-status-badge badge-inst">✓ Instalado ${suite.version ? `(v${sanitize(suite.version)})` : ''}</span>`;
+      statusBadgeHtml = `<span class="card-status-badge badge-inst">✓ ${installedBadgeText} ${suite.version ? `(v${sanitize(suite.version)})` : ''}</span>`;
     } else {
-      statusBadgeHtml = `<span class="card-status-badge badge-not-inst">No instalado</span>`;
+      statusBadgeHtml = `<span class="card-status-badge badge-not-inst">${notInstalledBadgeText}</span>`;
     }
 
     card.innerHTML = `
@@ -3105,6 +3469,42 @@ function escapeHtml(str) {
 // SYSTEM RESTORE POINTS LOGIC
 // ═══════════════════════════════════════════════════════════════════════════════
 
+let currentRestoreEnabled = null;
+
+function updateRestoreProtectionUI(isEnabled) {
+  const statStatus = document.getElementById('stat-restore-status');
+  const heroBadge = document.getElementById('restore-hero-badge');
+  const activeText = window.i18n ? window.i18n.t('restore_badge_active') : 'Active';
+  const inactiveText = window.i18n ? window.i18n.t('restore_badge_inactive') : 'Disabled';
+
+  if (statStatus) {
+    statStatus.textContent = isEnabled ? activeText : inactiveText;
+    statStatus.style.color = isEnabled ? '#10b981' : '#ef4444';
+  }
+  if (heroBadge) {
+    heroBadge.textContent = isEnabled ? activeText : inactiveText;
+    heroBadge.className = `badge-status-pill ${isEnabled ? 'badge-active' : 'badge-inactive'}`;
+  }
+}
+
+function getTranslatedRestoreTypeName(typeName) {
+  if (!typeName) return window.i18n ? window.i18n.t('restore_type_system') : 'System Point';
+  const lower = typeName.toLowerCase();
+  if (lower.includes('check') || lower.includes('comprobaci') || lower.includes('sistema') || lower.includes('system')) {
+    return window.i18n ? window.i18n.t('restore_type_checkpoint') : typeName;
+  }
+  if (lower.includes('instalación') || lower.includes('install')) {
+    return window.i18n ? window.i18n.t('restore_type_install') : typeName;
+  }
+  if (lower.includes('desinstalación') || lower.includes('uninstall')) {
+    return window.i18n ? window.i18n.t('restore_type_uninstall') : typeName;
+  }
+  if (lower.includes('driver') || lower.includes('controlador')) {
+    return window.i18n ? window.i18n.t('restore_type_driver') : typeName;
+  }
+  return typeName;
+}
+
 function bindRestoreControls() {
   const btnScanRestore = document.getElementById('btn-scan-restore');
   const btnCreateSidebar = document.getElementById('btn-create-restore-sidebar');
@@ -3184,21 +3584,21 @@ function bindRestoreControls() {
   if (btnOpenRstrui) {
     btnOpenRstrui.addEventListener('click', () => {
       window.electronAPI.openSystemRestoreWizard();
-      showToast('Abriendo Asistente de Recuperación de Windows (rstrui)...', 'info');
+      showToast(window.i18n ? window.i18n.t('toast_opening_rstrui') : 'Opening System Restore...', 'info');
     });
   }
 
   if (btnOpenRstruiTopbar) {
     btnOpenRstruiTopbar.addEventListener('click', () => {
       window.electronAPI.openSystemRestoreWizard();
-      showToast('Abriendo Asistente de Recuperación de Windows (rstrui)...', 'info');
+      showToast(window.i18n ? window.i18n.t('toast_opening_rstrui') : 'Opening System Restore...', 'info');
     });
   }
 
   if (btnOpenSettings) {
     btnOpenSettings.addEventListener('click', () => {
       window.electronAPI.openSystemRestoreSettings();
-      showToast('Abriendo Configuración de Protección del Sistema...', 'info');
+      showToast(window.i18n ? window.i18n.t('toast_opening_protection_settings') : 'Opening System Protection settings...', 'info');
     });
   }
 
@@ -3206,16 +3606,18 @@ function bindRestoreControls() {
   if (btnDeleteAll) {
     btnDeleteAll.addEventListener('click', () => {
       if (!allRestorePoints || allRestorePoints.length === 0) {
-        showToast('No hay puntos de restauración cargados para eliminar.', 'info');
+        showToast(window.i18n ? window.i18n.t('toast_no_restore_points') : 'No restore points to delete.', 'info');
         return;
       }
+      const msg = window.i18n ? window.i18n.t('confirm_delete_restore_all_msg', { count: allRestorePoints.length }) : `Delete all ${allRestorePoints.length} points?`;
+      const btnTxt = window.i18n ? window.i18n.t('confirm_delete_restore_all_btn') : 'Delete All';
       showConfirmationModal(
-        `¿Estás seguro de que deseas eliminar TODOS los puntos de restauración (${allRestorePoints.length} punto(s))?\n\nSe eliminarán todas las instantáneas de recuperación de Windows liberando espacio en el disco. Esta acción no se puede deshacer.`,
+        msg,
         () => {
           handleDeleteAllRestorePoints();
         },
         2,
-        'Eliminar Todos los Puntos'
+        btnTxt
       );
     });
   }
@@ -3277,14 +3679,8 @@ async function handleLoadRestorePoints(elevate = false, keepStatus = false) {
 
     // Protection status
     const isEnabled = res.enabled !== false;
-    if (statStatus) {
-      statStatus.textContent = isEnabled ? 'Activa' : 'Desactivada';
-      statStatus.style.color = isEnabled ? '#10b981' : '#ef4444';
-    }
-    if (heroBadge) {
-      heroBadge.textContent = isEnabled ? 'Activo' : 'Desactivado';
-      heroBadge.className = `badge-status-pill ${isEnabled ? 'badge-active' : 'badge-inactive'}`;
-    }
+    currentRestoreEnabled = isEnabled;
+    updateRestoreProtectionUI(isEnabled);
 
     allRestorePoints = Array.isArray(res.points) ? res.points : (res.points ? [res.points] : []);
     if (statTotal) statTotal.textContent = allRestorePoints.length;
@@ -3371,7 +3767,7 @@ function renderRestorePointsList(points) {
     const tr = document.createElement('tr');
     tr.className = 'package-row';
 
-    // Type pill class
+    // Type pill class & translated display text
     let typeClass = 'type-checkpoint';
     const typeLower = (p.typeName || '').toLowerCase();
     if (typeLower.includes('instalación') || typeLower.includes('install')) {
@@ -3379,6 +3775,12 @@ function renderRestorePointsList(points) {
     } else if (typeLower.includes('desinstalación') || typeLower.includes('uninstall')) {
       typeClass = 'type-uninstall';
     }
+
+    const typeDisplay = getTranslatedRestoreTypeName(p.typeName);
+    const restoreActionText = window.i18n ? window.i18n.t('btn_restore_point_action') : 'Restore';
+    const restoreTooltipText = window.i18n ? window.i18n.t('btn_restore_point_tooltip') : 'Open official Windows System Restore wizard at this point';
+    const deleteActionText = window.i18n ? window.i18n.t('btn_delete_point_action') : 'Delete';
+    const deleteTooltipText = window.i18n ? window.i18n.t('btn_delete_point_tooltip') : 'Delete this restore point to free up disk space';
 
     tr.innerHTML = `
       <td class="col-restore-num">
@@ -3391,17 +3793,17 @@ function renderRestorePointsList(points) {
         <span>${escapeHtml(formatRestoreDate(p.creationTime))}</span>
       </td>
       <td class="col-restore-type">
-        <span class="restore-type-pill ${typeClass}">${escapeHtml(p.typeName || 'Punto del sistema')}</span>
+        <span class="restore-type-pill ${typeClass}">${escapeHtml(typeDisplay)}</span>
       </td>
       <td class="col-restore-action">
         <div class="restore-action-buttons">
-          <button class="btn btn-ghost btn-xs btn-restore-item" title="Abrir asistente de restauración en este punto" aria-label="Restaurar este punto">
+          <button class="btn btn-ghost btn-xs btn-restore-item" title="${escapeHtml(restoreTooltipText)}" aria-label="${escapeHtml(restoreActionText)}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            <span>Restaurar</span>
+            <span>${escapeHtml(restoreActionText)}</span>
           </button>
-          <button class="btn btn-ghost btn-xs btn-delete-restore-item" title="Eliminar este punto de restauración" aria-label="Eliminar este punto">
+          <button class="btn btn-ghost btn-xs btn-delete-restore-item" title="${escapeHtml(deleteTooltipText)}" aria-label="${escapeHtml(deleteActionText)}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-            <span>Eliminar</span>
+            <span>${escapeHtml(deleteActionText)}</span>
           </button>
         </div>
       </td>
@@ -3411,20 +3813,26 @@ function renderRestorePointsList(points) {
     if (btnRestoreItem) {
       btnRestoreItem.addEventListener('click', () => {
         window.electronAPI.openSystemRestoreWizard();
-        showToast(`Abriendo Asistente de Recuperación para el punto #${p.sequenceNumber}...`, 'info');
+        showToast(window.i18n ? window.i18n.t('toast_opening_rstrui_item', { seq: p.sequenceNumber }) : `Opening wizard for point #${p.sequenceNumber}...`, 'info');
       });
     }
 
     const btnDeleteItem = tr.querySelector('.btn-delete-restore-item');
     if (btnDeleteItem) {
       btnDeleteItem.addEventListener('click', () => {
+        const msg = window.i18n ? window.i18n.t('confirm_delete_restore_single_msg', {
+          seq: p.sequenceNumber,
+          desc: p.description,
+          date: formatRestoreDate(p.creationTime)
+        }) : `Delete restore point #${p.sequenceNumber}?`;
+        const btnTxt = window.i18n ? window.i18n.t('confirm_delete_restore_single_btn') : 'Delete Point';
         showConfirmationModal(
-          `¿Estás seguro de que deseas eliminar el punto de restauración #${p.sequenceNumber}?\n\n"${p.description}" (${formatRestoreDate(p.creationTime)})\n\nEsta acción eliminará la instantánea del sistema liberando espacio en disco y no se puede deshacer.`,
+          msg,
           () => {
             handleDeleteRestorePoint(p.sequenceNumber, p.description);
           },
           0,
-          'Eliminar Punto'
+          btnTxt
         );
       });
     }

@@ -1,6 +1,6 @@
 {
   "name": "wingetix",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Panel de control para gestionar actualizaciones de software via winget",
   "main": "main.js",
   "author": "Wingetix",
@@ -48,7 +48,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "include": "build/installer.nsh"
+      "include": "build/installer.nsh",
+      "multiLanguageInstaller": true
     },
     "extraResources": [
       {

@@ -2796,5 +2796,44 @@ ipcMain.handle('app:install-update', async (_event, filePath) => {
   }
 });
 
+ipcMain.handle('app:open-external', async (_event, url) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    await shell.openExternal(url);
+    return { success: true };
+  }
+  return { success: false, error: 'Invalid URL' };
+});
+
+ipcMain.handle('app:get-installer-language', async () => {
+  try {
+    // 1. Check command line parameters (--lang=es / --lang=en)
+    if (Array.isArray(process.argv)) {
+      for (const arg of process.argv) {
+        if (typeof arg === 'string' && arg.startsWith('--lang=')) {
+          const val = arg.split('=')[1].toLowerCase().trim();
+          if (val === 'es' || val === 'spanish') return 'es';
+          if (val === 'en' || val === 'english') return 'en';
+        }
+      }
+    }
+
+    // 2. Check installed_lang.txt written by Inno Setup installer
+    const possiblePaths = [
+      path.join(process.resourcesPath, 'installed_lang.txt'),
+      path.join(app.getAppPath(), 'installed_lang.txt'),
+      path.join(path.dirname(app.getPath('exe')), 'resources', 'installed_lang.txt'),
+      path.join(path.dirname(app.getPath('exe')), 'installed_lang.txt')
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf8').trim().toLowerCase();
+        if (content === 'es' || content === 'spanish') return 'es';
+        if (content === 'en' || content === 'english') return 'en';
+      }
+    }
+  } catch (_) {}
+  return null;
+});
+
 
 

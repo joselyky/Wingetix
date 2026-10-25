@@ -140,6 +140,283 @@ body::before {
   letter-spacing: 0.01em;
 }
 
+/* ── Titlebar Brand Menu & Dropdown ────────────────────────────────── */
+.titlebar-brand-dropdown-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-brand-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 3px 8px 3px 5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-brand-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.titlebar-brand-btn.active,
+.titlebar-brand-btn[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(79, 142, 247, 0.45);
+  box-shadow: 0 0 10px rgba(79, 142, 247, 0.25);
+}
+
+.titlebar-chevron-icon {
+  color: var(--color-text-secondary);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+  margin-left: 2px;
+}
+
+.titlebar-brand-btn.active .titlebar-chevron-icon,
+.titlebar-brand-btn[aria-expanded="true"] .titlebar-chevron-icon {
+  transform: rotate(180deg);
+  color: var(--color-primary);
+}
+
+/* ── Titlebar App Dropdown Menu ─────────────────────────────────────── */
+.titlebar-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 270px;
+  background: rgba(22, 27, 34, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255, 255, 255, 0.2);
+  padding: 8px;
+  z-index: 9999;
+  -webkit-app-region: no-drag;
+  animation: titlebarMenuFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes titlebarMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.titlebar-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 10px 8px;
+}
+
+.dropdown-header-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 6px rgba(159, 234, 249, 0.5));
+  flex-shrink: 0;
+}
+
+.dropdown-header-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dropdown-header-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.dropdown-header-sub {
+  font-size: 10.5px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-version-pill {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-primary);
+  background: rgba(79, 142, 247, 0.12);
+  border: 1px solid rgba(79, 142, 247, 0.28);
+  border-radius: 10px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.titlebar-dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 4px;
+}
+
+.titlebar-dropdown-section-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  padding: 6px 8px 4px 8px;
+}
+
+.titlebar-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.titlebar-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.titlebar-dropdown-item.active {
+  background: rgba(79, 142, 247, 0.15);
+  border-color: rgba(79, 142, 247, 0.35);
+  color: #fff;
+}
+
+.dropdown-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.lang-flag-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-text-primary);
+}
+
+.titlebar-dropdown-item.active .lang-flag-badge {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.dropdown-item-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-item-primary {
+  font-size: 12px;
+  font-weight: 500;
+  color: inherit;
+}
+
+.dropdown-item-secondary {
+  font-size: 10.5px;
+  color: var(--color-text-secondary);
+}
+
+.dropdown-check-icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1;
+  -webkit-app-region: no-drag;
+}
+
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  user-select: none;
+  transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+
+.lang-switcher:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.lang-globe-icon {
+  color: var(--color-primary);
+  opacity: 0.85;
+  margin-right: 2px;
+}
+
+.lang-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.lang-btn:hover {
+  color: #fff;
+}
+
+.lang-btn.active {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.lang-divider {
+  font-size: 10px;
+  opacity: 0.35;
+  color: var(--color-text-secondary);
+}
+
 .titlebar-controls {
   display: flex;
   align-items: center;
@@ -3508,6 +3785,57 @@ tbody tr:nth-child(10) { animation-delay: 0.20s; }
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* System Components Warning Banner (Uninstaller) */
+.installed-system-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 12px 0 16px 0;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-left: 4px solid #ef4444;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  animation: fadeInDown 0.22s ease-out;
+}
+
+.installed-system-warning .system-warning-icon {
+  color: #f87171;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.installed-system-warning .system-warning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.installed-system-warning .system-warning-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fca5a5;
+  letter-spacing: 0.2px;
+}
+
+.installed-system-warning .system-warning-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 
