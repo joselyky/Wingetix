@@ -510,7 +510,7 @@ function getTotalSizeFromUrl(url, maxRedirects = 5) {
     if (!url || maxRedirects <= 0) return resolve(0);
     try {
       const client = url.startsWith('https:') ? https : http;
-      const req = client.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Wingetix/1.0.2' } }, res => {
+      const req = client.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Wingetix/1.1.0' } }, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           try {
             const nextUrl = new URL(res.headers.location, url).href;
@@ -705,6 +705,45 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
     let totalBytes = 0;
     let tracker = null;
     let installStarted = false;
+    let installInterval = null;
+    let autoInstallTimer = null;
+
+    const triggerInstallation = () => {
+      if (installStarted) return;
+      installStarted = true;
+      if (tracker) tracker.stop();
+      if (autoInstallTimer) { clearTimeout(autoInstallTimer); autoInstallTimer = null; }
+
+      let installSec = 0;
+      const finalMB = totalBytes > 0 ? (totalBytes / (1024 * 1024)).toFixed(1) : (tracker ? (tracker.getMaxBytes() / (1024 * 1024)).toFixed(1) : '—');
+
+      const sendInstallUpdate = (sec) => {
+        let stepMsg = 'Iniciando instalador oficial de Windows...';
+        if (sec >= 3 && sec < 10) stepMsg = 'Extrayendo y verificando archivos...';
+        else if (sec >= 10 && sec < 22) stepMsg = 'Aplicando actualización en el sistema...';
+        else if (sec >= 22 && sec < 40) stepMsg = 'Registrando componentes y librerías...';
+        else if (sec >= 40) stepMsg = 'Finalizando configuración de instalación...';
+
+        event.sender.send('winget:queue-update', {
+          pkgId,
+          status: 'installing',
+          downloadedMB: finalMB,
+          totalMB: finalMB,
+          percent: 100,
+          elapsedSeconds: sec,
+          speedMBs: '0.0',
+          message: stepMsg,
+          index: currentIdx,
+          total: packages.length
+        });
+      };
+
+      sendInstallUpdate(0);
+      installInterval = setInterval(() => {
+        installSec++;
+        sendInstallUpdate(installSec);
+      }, 1000);
+    };
 
     proc.stdout.on('data', d => {
       const text = d.toString('utf8');
@@ -737,27 +776,54 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
         });
       }
 
-      // Detect installer verification / installation start
-      const isInstalling = text.includes('hash del instalador se verificó') ||
-                           text.includes('Installer hash verified') ||
-                           text.includes('Iniciando la actualización') ||
-                           text.includes('Iniciando instalación') ||
-                           text.includes('Starting package install');
-      if (isInstalling && !installStarted) {
-        installStarted = true;
-        if (tracker) tracker.stop();
-        const finalMB = totalBytes > 0 ? (totalBytes / (1024 * 1024)).toFixed(1) : (tracker ? (tracker.getMaxBytes() / (1024*1024)).toFixed(1) : '—');
-        event.sender.send('winget:queue-update', {
-          pkgId,
-          status: 'installing',
-          downloadedMB: finalMB,
-          totalMB: finalMB,
-          percent: 100,
-          speedMBs: '0.0',
-          message: 'Instalando actualización...',
-          index: currentIdx,
-          total: packages.length
-        });
+      const textLower = text.toLowerCase();
+
+      // Native Winget progress parsing from stdout (e.g. 15.2 MB / 45.0 MB)
+      const mbMatch = text.match(/(\d+(?:\.\d+)?)\s*(MB|KB|GB)\s*[\/|de]\s*(\d+(?:\.\d+)?)\s*(MB|KB|GB)/i);
+      if (mbMatch && !installStarted) {
+        const cur = parseFloat(mbMatch[1]);
+        const unit1 = mbMatch[2].toUpperCase();
+        const tot = parseFloat(mbMatch[3]);
+        const unit2 = mbMatch[4].toUpperCase();
+        const curMB = unit1 === 'GB' ? cur * 1024 : (unit1 === 'KB' ? cur / 1024 : cur);
+        const totMB = unit2 === 'GB' ? tot * 1024 : (unit2 === 'KB' ? tot / 1024 : tot);
+        if (totMB > 0) {
+          const pct = Math.min(99.5, Number(((curMB / totMB) * 100).toFixed(1)));
+          event.sender.send('winget:queue-update', {
+            pkgId,
+            status: 'downloading',
+            downloadedMB: curMB.toFixed(1),
+            totalMB: totMB.toFixed(1),
+            percent: pct,
+            speedMBs: tracker && tracker.getSpeed ? tracker.getSpeed() : '—',
+            message: `Descargando: ${curMB.toFixed(1)} MB / ${totMB.toFixed(1)} MB (${pct}%)`,
+            index: currentIdx,
+            total: packages.length
+          });
+          if (pct >= 99) {
+            if (!autoInstallTimer) {
+              autoInstallTimer = setTimeout(() => {
+                if (!installStarted) triggerInstallation();
+              }, 1200);
+            }
+          }
+        }
+      }
+
+      // Robust installer verification / installation start detection
+      const hasHash = textLower.includes('hash') && (textLower.includes('comprob') || textLower.includes('verif') || textLower.includes('succes') || textLower.includes('correct'));
+      const hasInstall = textLower.includes('iniciando la actualizaci') ||
+                         textLower.includes('iniciando la instalaci') ||
+                         textLower.includes('iniciando instalaci') ||
+                         textLower.includes('iniciando actualizaci') ||
+                         textLower.includes('instalando paquete') ||
+                         textLower.includes('instalando...') ||
+                         textLower.includes('starting package install') ||
+                         textLower.includes('installing package') ||
+                         textLower.includes('installing...');
+
+      if ((hasHash || hasInstall) && !installStarted) {
+        triggerInstallation();
       }
     });
 
@@ -2434,7 +2500,7 @@ ipcMain.handle('restore:delete-all', async () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const GITHUB_OWNER = 'joselyky';
 const GITHUB_REPO = 'Wingetix';
-const APP_CURRENT_VERSION = app.getVersion() || '1.0.2';
+const APP_CURRENT_VERSION = app.getVersion() || '1.1.0';
 
 /**
  * Compare two semver version strings.

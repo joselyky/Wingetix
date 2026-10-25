@@ -2649,9 +2649,65 @@ tbody tr:nth-child(10) { animation-delay: 0.20s; }
   position: relative;
 }
 
+.queue-item-card.item-installing .queue-progress-track {
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.08);
+}
+
 .queue-item-card.item-installing .queue-progress-fill {
-  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+  width: 100% !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    #d97706 0px,
+    #d97706 14px,
+    #fbbf24 14px,
+    #fbbf24 28px
+  ) !important;
+  background-size: 39.6px 39.6px !important;
+  animation: queueInstallingFlow 1s linear infinite, queueInstallingPulse 2s ease-in-out infinite alternate !important;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.7) !important;
+}
+
+@keyframes queueInstallingFlow {
+  0% { background-position: 0 0; }
+  100% { background-position: 39.6px 0; }
+}
+
+@keyframes queueInstallingPulse {
+  0% { filter: brightness(0.95); opacity: 0.92; }
+  100% { filter: brightness(1.2); opacity: 1; }
+}
+
+.queue-item-card.item-installing .badge-installing {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border: 1px solid rgba(251, 191, 36, 0.5) !important;
+  color: #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.3) !important;
+}
+
+.queue-item-card.item-installing .status-pulse-dot.pulse-warning {
+  background: #fbbf24;
+  box-shadow: 0 0 10px #fbbf24, 0 0 16px rgba(251, 191, 36, 0.8);
+  animation: pulseWarningGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulseWarningGlow {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.25); opacity: 1; }
+}
+
+.install-timer-badge {
+  color: #fbbf24;
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.install-speed-text {
+  color: #fbbf24;
+  font-weight: 500;
 }
 
 .queue-item-card.item-completed .queue-progress-fill {
@@ -3195,7 +3251,6 @@ tbody tr:nth-child(10) { animation-delay: 0.20s; }
   background: rgba(79, 142, 247, 0.15);
   border-color: rgba(79, 142, 247, 0.4);
   color: #93c5fd;
-  
 }
 
 .btn-check-update-icon.checking svg {
@@ -3459,64 +3514,3 @@ tbody tr:nth-child(10) { animation-delay: 0.20s; }
 
 
 
-
-.queue-item-card.item-installing .queue-progress-track {
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
-  background: rgba(245, 158, 11, 0.08);
-}
-
-.queue-item-card.item-installing .queue-progress-fill {
-  width: 100% !important;
-  background: repeating-linear-gradient(
-    -45deg,
-    #d97706 0px,
-    #d97706 14px,
-    #fbbf24 14px,
-    #fbbf24 28px
-  ) !important;
-  background-size: 39.6px 39.6px !important;
-  animation: queueInstallingFlow 1s linear infinite, queueInstallingPulse 2s ease-in-out infinite alternate !important;
-  box-shadow: 0 0 16px rgba(251, 191, 36, 0.7) !important;
-}
-
-@keyframes queueInstallingFlow {
-  0% { background-position: 0 0; }
-  100% { background-position: 39.6px 0; }
-}
-
-@keyframes queueInstallingPulse {
-  0% { filter: brightness(0.95); opacity: 0.92; }
-  100% { filter: brightness(1.2); opacity: 1; }
-}
-
-.queue-item-card.item-installing .badge-installing {
-  background: rgba(245, 158, 11, 0.16) !important;
-  border: 1px solid rgba(251, 191, 36, 0.5) !important;
-  color: #fbbf24 !important;
-  box-shadow: 0 0 14px rgba(245, 158, 11, 0.3) !important;
-}
-
-.queue-item-card.item-installing .status-pulse-dot.pulse-warning {
-  background: #fbbf24;
-  box-shadow: 0 0 10px #fbbf24, 0 0 16px rgba(251, 191, 36, 0.8);
-  animation: pulseWarningGlow 1s ease-in-out infinite alternate;
-}
-
-@keyframes pulseWarningGlow {
-  0% { transform: scale(0.85); opacity: 0.7; }
-  100% { transform: scale(1.25); opacity: 1; }
-}
-
-.install-timer-badge {
-  color: #fbbf24;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-}
-
-.install-speed-text {
-  color: #fbbf24;
-  font-weight: 500;
-}
