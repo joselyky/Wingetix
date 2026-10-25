@@ -411,20 +411,25 @@ function updateQueueUI(data) {
     const pName = currentPkg ? currentPkg.name : data.pkgId;
     setStatusBar(`Descargando: ${pName}`, `${data.downloadedMB} MB de ${totalMbText} (${data.percent}%) • ${data.speedMBs || '0.0'} MB/s`, Math.round(data.percent), 'busy');
   } else if (data.status === 'installing') {
+    card.classList.remove('item-downloading');
     card.classList.add('item-installing');
     if (badge) {
       badge.className = 'queue-status-badge badge-installing';
-      badge.innerHTML = '<span class="status-pulse-dot pulse-warning"></span><span>Instalando</span>';
+      badge.innerHTML = '<span class="status-pulse-dot pulse-warning"></span><span>Instalando...</span>';
     }
     if (fill) fill.style.width = '100%';
-    if (bytesEl) bytesEl.textContent = data.message || `${data.downloadedMB || 'Descarga lista'} (${totalMbText})`;
-    if (speedEl) speedEl.textContent = 'Instalando...';
-    if (pctEl) pctEl.textContent = '100%';
+    
+    const sec = data.elapsedSeconds || 0;
+    const secText = sec > 0 ? ` (${sec}s)` : '';
+    if (bytesEl) bytesEl.textContent = data.message || `Descarga completada (${totalMbText}) • Ejecutando instalador`;
+    if (speedEl) speedEl.innerHTML = `<span class="install-speed-text">Paso 2/2: Instalando${secText}</span>`;
+    if (pctEl) pctEl.innerHTML = `<span class="install-timer-badge">Instalando${secText}</span>`;
 
     const currentPkg = currentQueueItems.find(i => i.id === data.pkgId);
     const pName = currentPkg ? currentPkg.name : data.pkgId;
-    setStatusBar(`Instalando: ${pName}`, data.message || 'Ejecutando instalador oficial de Windows...', 100, 'busy');
+    setStatusBar(`Instalando: ${pName}`, `${data.message || 'Ejecutando instalador oficial de Windows'}${secText}`, null, 'busy');
   } else if (data.status === 'completed') {
+    card.classList.remove('item-installing');
     card.classList.add('item-completed');
     sessionCompletedPkgIds.add(data.pkgId);
 

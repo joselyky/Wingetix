@@ -405,6 +405,8 @@ ipcMain.handle('winget:enable-in-terminal', async () => {
     proc.stderr.on('data', d => { stderr += d.toString(); });
 
     proc.on('close', code => {
+      if (installInterval) { clearInterval(installInterval); installInterval = null; }
+      if (autoInstallTimer) { clearTimeout(autoInstallTimer); autoInstallTimer = null; }
       resolve({ success: code === 0, stdout, stderr, code });
     });
 
@@ -615,7 +617,8 @@ function trackActiveDownload(pkgId, totalBytes, onProgress) {
       stopped = true;
       clearInterval(interval);
     },
-    getMaxBytes: () => maxBytesSeen
+    getMaxBytes: () => maxBytesSeen,
+    getSpeed: () => speedMBs
   };
 }
 
