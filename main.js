@@ -1363,7 +1363,7 @@ if (![string]::IsNullOrWhiteSpace($safeInstallLoc)) {
 }
 
 # ─── FASE 3A & 4C: Punto de Restauración y Respaldo .REG ─────────────────────────
-$backupDir = Join-Path $env:LOCALAPPDATA "WinGetManager\\RegistryBackups"
+$backupDir = Join-Path $env:LOCALAPPDATA "Wingetix\\RegistryBackups"
 try {
     if (!(Test-Path -LiteralPath $backupDir)) {
         New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
@@ -2562,7 +2562,7 @@ async function checkAppUpdatesCore(opts = {}) {
  */
 function downloadUpdateAsset(downloadUrl, assetName, onProgress) {
   return new Promise((resolve, reject) => {
-    const updateDir = path.join(os.tmpdir(), 'WinGetManagerUpdate');
+    const updateDir = path.join(os.tmpdir(), 'WingetixUpdate');
     if (!fs.existsSync(updateDir)) {
       fs.mkdirSync(updateDir, { recursive: true });
     }
