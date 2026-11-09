@@ -82,28 +82,39 @@ Wingetix is architected under a **zero-malware tolerance, full user control, and
 - **Live Transfer Telemetry**: Real-time progress bar, bytes transferred, and download speed indicators (`MB/s`).
 - **Seamless Restart**: Safely closes the application and launches the updated installer automatically.
 
-### ⚡ 2. Real-Time Update Hub
+### ⚡ 2. Real-Time Update Hub & Queue
 - **Rapid Scan**: Scans and evaluates installed software versions against Microsoft's official database in seconds.
 - **1-Click Batch Updates**: Update individual apps or queue every outdated application simultaneously.
-- **Category Filters**: Easily filter between desktop applications, games, and system utilities.
+- **Dynamic Cancel Button**: Instantly and safely cancel running downloads or batch operations with one click.
+- **Category Filters**: Easily filter between desktop applications, games, and developer utilities.
 - **Integrated Console**: View raw `winget` output in an expandable live streaming log.
 
-### 🛡️ 3. Clean Uninstaller with Platform Shield
+### 🧹 3. Storage & Cache Cleaner
+- **Deep Cache Scrubber**: Reclaim gigabytes of wasted storage left behind by WinGet installer packages (`.exe`, `.msi`, `.msix`).
+- **Multi-Target Cleaning**: Cleans user temporary directories (`%TEMP%`), crash memory dumps (`.dmp`), Windows Error Reporting archives, and system temp folders.
+- **🛡️ Active Process Shield**: Automatically protects and skips files currently locked or in use by running software without breaking the cleanup.
+- **Live Cleanup Telemetry**: Real-time file scrubber animation, byte count indicators, and direct "Open Folder" explorer links.
+
+### 📌 4. Package Pinning & Version Freezing
+- **Exclude / Freeze Software**: Pin any installed package natively using official `winget pin` to suppress unwanted update alerts.
+- **Dedicated Pinned Tab**: Filter and unfreeze pinned applications at any time when you decide to upgrade.
+
+### 🌐 5. Multilingual Interface with Country Flags
+- **Instant Language Switching**: Toggle between English (`🇺🇸`) and Spanish (`🇪🇸`) at runtime without restarting.
+- **Installer Language Auto-Detection**: Respects and configures the preferred language chosen during setup.
+
+### 🛡️ 6. Clean Uninstaller with Platform Shield
 - **Deep Leftover Purge**: Analyzes `%ProgramFiles%`, `%AppData%`, `%LocalAppData%`, `ProgramData`, and the Windows Registry (`HKLM` / `HKCU`) to remove orphaned leftovers.
 - **Platform Shield**: Hardened armor for **Steam, Epic Games, Ubisoft Connect, EA App, Riot Games, Battle.net, and GOG Galaxy**. Uninstall games without risking launcher corruption or collateral damage to your game library.
 
-### 🎮 4. GPU Telemetry & Official Driver Suites
+### 🎮 7. GPU Telemetry & Official Driver Suites
 - **Hardware Detection**: Automatically detects **NVIDIA GeForce**, **AMD Radeon**, and **Intel Arc / Iris** graphics adapters.
 - **Live Telemetry**: Real-time VRAM allocation, GPU core temperatures, power consumption, and display resolution.
 - **Direct Official Suites**: One-click quick links to download official control software (GeForce Experience / NVIDIA App, AMD Software Adrenalin, Intel Graphics Command Center).
 
-### 💾 5. Windows System Restore Points
+### 💾 8. Windows System Restore Points
 - **Pre-emptive Snapshots**: Create system restore points before installing graphics drivers or uninstalling mission-critical packages.
 - **Snapshot Manager**: Review existing restore points, clean older snapshots to reclaim disk space, or launch `rstrui.exe` directly.
-
-### ⚡ 6. Batch Operations & Smart Queue
-- **Unattended Execution**: Select multiple packages and let the queue run in the background.
-- **Smart Selector**: Quick filters, instant version comparison, and zero manual installer prompts.
 
 ---
 
@@ -113,6 +124,8 @@ Wingetix is architected under a **zero-malware tolerance, full user control, and
 | :--- | :---: | :--- |
 | **Updates** | 🔄 | Main dashboard listing outdated software with search filters, batch selector, and real-time update queue. |
 | **Clean Uninstaller** | 🗑️ | Comprehensive list of installed software with version, size, installation date, and deep leftover purge. |
+| **Storage Cleaner** | 🧹 | Scan and purge installer caches, temporary setup files, and crash dumps with non-blocking protection. |
+| **Package Pinning** | 📌 | Freeze versions and exclude specific packages from update notifications via native `winget pin`. |
 | **GPU & Control** | 🎮 | Live thermal sensor readings, VRAM usage monitor, GPU specs, and official driver downloads. |
 | **Restore Points** | 🛡️ | Create, inspect, and manage native Windows System Restore snapshots. |
 | **Auto-Updater** | 🚀 | Interactive modal that downloads and installs new GitHub releases seamlessly. |
@@ -122,14 +135,14 @@ Wingetix is architected under a **zero-malware tolerance, full user control, and
 ## 📥 Download & Installation
 
 ### Option 1: Guided Installer (.exe) — Recommended
-Download **`Wingetix Setup 1.0.2.exe`** from the official [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest).
-- Guided setup wizard.
+Download **`Wingetix Setup 1.1.1.exe`** from the official [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest).
+- Guided setup wizard with multilingual selector.
 - Creates Desktop and Start Menu shortcuts.
 - Automatically enables and configures `winget` in your Windows terminal if absent.
 - Full uninstallation support from the Windows Control Panel.
 
 ### Option 2: Portable Standalone (.exe)
-Download **`Wingetix 1.0.2.exe`** to run the tool standalone without installation (ideal for IT maintenance USB flash drives).
+Download **`Wingetix 1.1.1.exe`** to run the tool standalone without installation (ideal for IT maintenance USB flash drives).
 
 ---
 

@@ -66,7 +66,7 @@ function getScriptPath(scriptName) {
 // ─── Window ───────────────────────────────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1100, height: 760, minWidth: 800, minHeight: 600,
+    width: 1280, height: 800, minWidth: 960, minHeight: 640,
     frame: false, transparent: true, backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false, contextIsolation: true,
@@ -207,119 +207,34 @@ async function attachIconsToPackages(packages) {
   if (!packages || packages.length === 0) return packages;
   
   return new Promise((resolve) => {
-    const pkgData = JSON.stringify(packages.map(p => ({ name: p.name, id: p.id })));
-    const psScript = `
-Add-Type -AssemblyName System.Drawing
-
-function Clean-Path([string]$p) {
-    if ([string]::IsNullOrWhiteSpace($p)) { return "" }
-    $p = $p.Trim().Trim('"').Trim("'")
-    if ($p -match '^(.*?\\.(exe|ico|dll))(,|-|\\s|$)') {
-        $p = $matches[1]
-    } elseif ($p -match '^(.*?,\\d+)') {
-        $p = $p.Split(',')[0].Trim('"')
+    const targetScript = getScriptPath('attach-icons.ps1');
+    if (!fs.existsSync(targetScript) || targetScript.toLowerCase().includes('.asar')) {
+      console.warn('[attachIconsToPackages] Script not found:', targetScript);
+      return resolve(packages);
     }
-    return $p
-}
 
-function Get-IconBase64([string]$filePath) {
-    if ([string]::IsNullOrWhiteSpace($filePath) -or !(Test-Path -LiteralPath $filePath)) { return "" }
+    const tmpInput = path.join(os.tmpdir(), `winget_icons_in_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.json`);
     try {
-        $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($filePath)
-        if ($icon) {
-            $bmp = $icon.ToBitmap()
-            $ms = New-Object System.IO.MemoryStream
-            $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
-            $bytes = $ms.ToArray()
-            $b64 = [Convert]::ToBase64String($bytes)
-            $ms.Dispose()
-            $bmp.Dispose()
-            $icon.Dispose()
-            return $b64
-        }
-    } catch {}
-    return ""
-}
-
-$paths = @(
-  "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
-  "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*",
-  "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*"
-)
-$regApps = Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -ne $null }
-
-$jsonInput = '${pkgData.replace(/'/g, "''").replace(/\\/g, "\\\\")}'
-$items = ConvertFrom-Json $jsonInput
-
-$results = @()
-foreach ($item in $items) {
-    $pkgName = ($item.name + '').ToLower()
-    $pkgId = ($item.id + '').ToLower()
-
-    $match = $regApps | Where-Object {
-        ($_.DisplayName -and $_.DisplayName.ToLower() -eq $pkgName) -or
-        ($_.DisplayName -and $pkgName.Contains($_.DisplayName.ToLower())) -or
-        ($_.PSChildName -and $_.PSChildName.ToLower() -eq $pkgId)
-    } | Select-Object -First 1
-
-    $iconPath = ""
-    if ($match -and $match.DisplayIcon) {
-        $iconPath = Clean-Path $match.DisplayIcon
+      fs.writeFileSync(tmpInput, JSON.stringify(packages.map(p => ({ name: p.name, id: p.id }))), 'utf8');
+    } catch (_) {
+      return resolve(packages);
     }
-    if ([string]::IsNullOrWhiteSpace($iconPath) -and $match -and $match.InstallLocation) {
-        $exe = Get-ChildItem -LiteralPath $match.InstallLocation -Filter "*.exe" -File -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($exe) { $iconPath = $exe.FullName }
-    }
-
-    $b64 = ""
-    if (![string]::IsNullOrWhiteSpace($iconPath)) {
-        $b64 = Get-IconBase64 $iconPath
-    }
-
-    $pub = ""
-    if ($match -and $match.Publisher) {
-        $pub = ($match.Publisher + '').Trim()
-    }
-    if ([string]::IsNullOrWhiteSpace($pub)) {
-        if ($item.id -match '^([^.]+)\.') {
-            $pub = $matches[1]
-        } else {
-            $pub = "Desconocido"
-        }
-    }
-
-    [double]$sizeMb = 0
-    if ($match -and $match.EstimatedSize -and [int64]$match.EstimatedSize -gt 0) {
-        $sizeMb = [math]::Round([int64]$match.EstimatedSize / 1024, 2)
-    }
-
-    $results += [PSCustomObject]@{
-        id = $item.id
-        iconBase64 = $b64
-        publisher = $pub
-        sizeMb = $sizeMb
-    }
-}
-$results | ConvertTo-Json -Compress
-`;
-
-    const tmpPath = path.join(os.tmpdir(), `winget_icons_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.ps1`);
-    fs.writeFileSync(tmpPath, '\ufeff' + psScript, 'utf8');
 
     const proc = spawn('powershell.exe', [
       '-NoProfile',
       '-NonInteractive',
       '-ExecutionPolicy', 'Bypass',
-      '-File', tmpPath
+      '-File', targetScript,
+      '-InputJsonPath', tmpInput
     ], {
       windowsHide: true,
+      maxBuffer: 50 * 1024 * 1024
     });
 
     const chunks = [];
     proc.stdout.on('data', d => chunks.push(d));
     proc.on('close', () => {
-      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch (_) {}
+      try { if (fs.existsSync(tmpInput)) fs.unlinkSync(tmpInput); } catch (_) {}
       const output = Buffer.concat(chunks).toString('utf8').trim();
       try {
         const parsed = JSON.parse(output);
@@ -341,7 +256,7 @@ $results | ConvertTo-Json -Compress
       }
     });
     proc.on('error', () => {
-      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch (_) {}
+      try { if (fs.existsSync(tmpInput)) fs.unlinkSync(tmpInput); } catch (_) {}
       resolve(packages);
     });
   });
@@ -482,6 +397,224 @@ ipcMain.handle('winget:import-packages', async () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// WINGET PINNING & PAUSING SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+const pinnedStorePath = path.join(app.getPath('userData'), 'pinned_packages.json');
+
+function loadPinnedStore() {
+  try {
+    if (fs.existsSync(pinnedStorePath)) {
+      const data = fs.readFileSync(pinnedStorePath, 'utf8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn('[loadPinnedStore] Error reading pinned store:', err.message);
+  }
+  return [];
+}
+
+function savePinnedStore(list) {
+  try {
+    fs.writeFileSync(pinnedStorePath, JSON.stringify(list, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[savePinnedStore] Error saving pinned store:', err.message);
+  }
+}
+
+function parseWingetPinOutput(raw) {
+  const pins = [];
+  if (!raw || typeof raw !== 'string') return pins;
+
+  const cleaned = raw
+    .replace(/^\uFEFF/, '')
+    .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  const lines = cleaned.split('\n');
+  let sepIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const stripped = lines[i].replace(/\s/g, '');
+    if (stripped.length > 5 && /^[-─\u2500\u2015]+$/.test(stripped)) {
+      sepIdx = i;
+      break;
+    }
+  }
+  if (sepIdx < 1) return pins;
+
+  let headerLine = '';
+  for (let i = sepIdx - 1; i >= 0; i--) {
+    if (lines[i].trim()) { headerLine = lines[i]; break; }
+  }
+  if (!headerLine) return pins;
+
+  const tokens = headerLine.split(/  +/).map(s => s.trim()).filter(Boolean);
+  if (tokens.length < 2) return pins;
+
+  const colStarts = [];
+  let searchFrom = 0;
+  for (const tok of tokens) {
+    const idx = headerLine.indexOf(tok, searchFrom);
+    if (idx === -1) break;
+    colStarts.push(idx);
+    searchFrom = idx + tok.length;
+  }
+  if (colStarts.length < 2) return pins;
+
+  const cell = (line, colIdx) => {
+    if (colIdx >= colStarts.length) return '';
+    const start = colStarts[colIdx];
+    const end = colIdx + 1 < colStarts.length ? colStarts[colIdx + 1] : line.length;
+    if (start >= line.length) return '';
+    return line.slice(start, end).trim();
+  };
+
+  for (let i = sepIdx + 1; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed || /^[-─\u2500]{5,}/.test(trimmed)) continue;
+    if (line.length < colStarts[1] + 1) continue;
+
+    const name = cell(line, 0);
+    const id = cell(line, 1);
+    const version = cell(line, 2);
+    const source = cell(line, 3) || 'winget';
+    const pinType = cell(line, 4) || 'Blocking';
+
+    if (!name || !id) continue;
+    pins.push({ name, id, version, source, pinType });
+  }
+
+  return pins;
+}
+
+ipcMain.handle('winget:pin-list', async () => {
+  return new Promise((resolve) => {
+    const localPins = loadPinnedStore();
+    const env = buildEnv();
+    const proc = spawn('cmd', ['/c', 'winget pin list'], {
+      env, shell: false, windowsHide: true,
+    });
+
+    let stdout = '';
+    proc.stdout.on('data', d => { stdout += d.toString('utf8'); });
+    proc.on('close', async () => {
+      const cliPins = parseWingetPinOutput(stdout);
+      
+      const map = new Map();
+      localPins.forEach(p => map.set(p.id, p));
+      cliPins.forEach(cp => {
+        if (!map.has(cp.id)) {
+          map.set(cp.id, {
+            id: cp.id,
+            name: cp.name || cp.id,
+            version: cp.version || '—',
+            source: cp.source || 'winget',
+            pinType: cp.pinType || 'Blocking',
+            pinnedAt: new Date().toISOString()
+          });
+        } else {
+          const existing = map.get(cp.id);
+          existing.version = cp.version || existing.version;
+          existing.pinType = cp.pinType || existing.pinType;
+        }
+      });
+
+      const merged = Array.from(map.values());
+      savePinnedStore(merged);
+
+      const needIcons = merged.filter(p => !p.iconBase64);
+      if (needIcons.length > 0) {
+        try {
+          await attachIconsToPackages(merged);
+        } catch (_) {}
+      }
+
+      resolve(merged);
+    });
+
+    proc.on('error', () => {
+      resolve(localPins);
+    });
+  });
+});
+
+ipcMain.handle('winget:pin-add', async (_e, pkg) => {
+  const pkgId = typeof pkg === 'string' ? pkg : pkg?.id;
+  if (!pkgId) return { success: false, error: 'ID de paquete no proporcionado' };
+
+  return new Promise((resolve) => {
+    const env = buildEnv();
+    const proc = spawn('cmd', ['/c', `winget pin add --id "${pkgId}" --blocking`], {
+      env, shell: false, windowsHide: true,
+    });
+
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', d => { stdout += d.toString('utf8'); });
+    proc.stderr.on('data', d => { stderr += d.toString('utf8'); });
+
+    proc.on('close', (code) => {
+      const localPins = loadPinnedStore();
+      const existingIdx = localPins.findIndex(p => p.id === pkgId);
+      const newPin = {
+        id: pkgId,
+        name: (typeof pkg === 'object' && pkg?.name) ? pkg.name : pkgId,
+        version: (typeof pkg === 'object' && pkg?.version) ? pkg.version : '—',
+        available: (typeof pkg === 'object' && pkg?.available) ? pkg.available : '',
+        publisher: (typeof pkg === 'object' && pkg?.publisher) ? pkg.publisher : '',
+        iconBase64: (typeof pkg === 'object' && pkg?.iconBase64) ? pkg.iconBase64 : '',
+        source: (typeof pkg === 'object' && pkg?.source) ? pkg.source : 'winget',
+        pinType: 'Blocking',
+        pinnedAt: new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        localPins[existingIdx] = { ...localPins[existingIdx], ...newPin };
+      } else {
+        localPins.push(newPin);
+      }
+      savePinnedStore(localPins);
+
+      resolve({ success: true, id: pkgId, code, stdout, stderr });
+    });
+
+    proc.on('error', (err) => {
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
+ipcMain.handle('winget:pin-remove', async (_e, pkgId) => {
+  if (!pkgId) return { success: false, error: 'ID de paquete no proporcionado' };
+
+  return new Promise((resolve) => {
+    const env = buildEnv();
+    const proc = spawn('cmd', ['/c', `winget pin remove --id "${pkgId}"`], {
+      env, shell: false, windowsHide: true,
+    });
+
+    let stdout = '';
+    let stderr = '';
+    proc.stdout.on('data', d => { stdout += d.toString('utf8'); });
+    proc.stderr.on('data', d => { stderr += d.toString('utf8'); });
+
+    proc.on('close', (code) => {
+      const localPins = loadPinnedStore().filter(p => p.id !== pkgId);
+      savePinnedStore(localPins);
+      resolve({ success: true, id: pkgId, code, stdout, stderr });
+    });
+
+    proc.on('error', (err) => {
+      const localPins = loadPinnedStore().filter(p => p.id !== pkgId);
+      savePinnedStore(localPins);
+      resolve({ success: true, id: pkgId, error: err.message });
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // IPCMAIN: UPGRADE SELECTED PACKAGES
 // ═══════════════════════════════════════════════════════════════════════════════
 /**
@@ -510,7 +643,7 @@ function getTotalSizeFromUrl(url, maxRedirects = 5) {
     if (!url || maxRedirects <= 0) return resolve(0);
     try {
       const client = url.startsWith('https:') ? https : http;
-      const req = client.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Wingetix/1.1.0' } }, res => {
+      const req = client.request(url, { method: 'HEAD', headers: { 'User-Agent': 'Wingetix/1.1.1' } }, res => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           try {
             const nextUrl = new URL(res.headers.location, url).href;
@@ -622,12 +755,62 @@ function trackActiveDownload(pkgId, totalBytes, onProgress) {
   };
 }
 
+let activeUpgradeProc = null;
+let isUpgradeCancelled = false;
+let activeCleanupTimers = null;
+let activeUninstallProc = null;
+let isUninstallCancelled = false;
+
+function killProcessTree(proc) {
+  if (!proc || !proc.pid) return;
+  try {
+    spawn('taskkill', ['/pid', proc.pid.toString(), '/T', '/F'], { windowsHide: true });
+  } catch (e) {
+    try { proc.kill('SIGKILL'); } catch (_) {}
+  }
+}
+
+ipcMain.on('winget:cancel-upgrade', (event) => {
+  isUpgradeCancelled = true;
+  if (activeCleanupTimers) {
+    try { activeCleanupTimers(); } catch (_) {}
+    activeCleanupTimers = null;
+  }
+  if (activeUpgradeProc) {
+    killProcessTree(activeUpgradeProc);
+    activeUpgradeProc = null;
+  }
+  event.sender.send('winget:log', {
+    type: 'warning',
+    text: '\n🛑 Actualización cancelada por el usuario.\n'
+  });
+  event.sender.send('winget:queue-cancel', { message: 'Cancelado por el usuario' });
+  event.sender.send('winget:done', { success: false, cancelled: true });
+});
+
+ipcMain.on('apps:cancel-uninstall', (event) => {
+  isUninstallCancelled = true;
+  if (activeUninstallProc) {
+    killProcessTree(activeUninstallProc);
+    activeUninstallProc = null;
+  }
+  event.sender.send('apps:uninstall-log', {
+    type: 'warning',
+    text: '\n🛑 Desinstalación cancelada por el usuario.\n'
+  });
+  event.sender.send('apps:uninstall-done', { success: false, cancelled: true });
+});
+
 ipcMain.on('winget:upgrade-packages', (event, packages) => {
   if (!packages?.length) {
     event.sender.send('winget:log', { type: 'error', text: 'No se seleccionaron paquetes.' });
     event.sender.send('winget:done', { success: false });
     return;
   }
+
+  isUpgradeCancelled = false;
+  activeUpgradeProc = null;
+  activeCleanupTimers = null;
 
   const env = buildEnv();
   event.sender.send('winget:log', {
@@ -655,7 +838,10 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
 
   let index = 0;
   const upgradeNext = () => {
+    if (isUpgradeCancelled) return;
     if (index >= packages.length) {
+      activeUpgradeProc = null;
+      activeCleanupTimers = null;
       event.sender.send('winget:log', { type: 'success', text: '\n✅ Todas las actualizaciones completadas.' });
       event.sender.send('winget:done', { success: true });
       return;
@@ -724,6 +910,9 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
         installInterval = null;
       }
     };
+
+    activeUpgradeProc = proc;
+    activeCleanupTimers = cleanupTimers;
 
     const triggerInstallation = () => {
       if (installStarted || isTerminated) return;
@@ -861,6 +1050,22 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
 
     proc.on('close', code => {
       cleanupTimers();
+      activeUpgradeProc = null;
+      activeCleanupTimers = null;
+      if (isUpgradeCancelled) {
+        event.sender.send('winget:queue-update', {
+          pkgId,
+          status: 'cancelled',
+          downloadedMB: '—',
+          totalMB: '—',
+          percent: 0,
+          speedMBs: '0.0',
+          message: 'Cancelado por el usuario',
+          index: currentIdx,
+          total: packages.length
+        });
+        return;
+      }
       const outputLower = procOutput.toLowerCase();
       const unsignedCode = (typeof code === 'number') ? (code >>> 0) : 0;
       const hexCode = '0x' + unsignedCode.toString(16).toLowerCase();
@@ -1152,6 +1357,7 @@ ipcMain.on('winget:upgrade-package-elevated', (event, pkg) => {
 // IPCMAIN: UPGRADE ALL
 // ═══════════════════════════════════════════════════════════════════════════════
 ipcMain.on('winget:upgrade-all', (event) => {
+  isUpgradeCancelled = false;
   const env = buildEnv();
   event.sender.send('winget:log', { type: 'info', text: '▶ Ejecutando winget upgrade --all ...\n' });
 
@@ -1159,11 +1365,14 @@ ipcMain.on('winget:upgrade-all', (event) => {
     '/c',
     'winget upgrade --all --silent --accept-package-agreements --accept-source-agreements',
   ], { env, shell: false, windowsHide: true });
+  activeUpgradeProc = proc;
 
   proc.stdout.on('data', d => event.sender.send('winget:log', { type: 'output', text: d.toString('utf8') }));
   proc.stderr.on('data', d => event.sender.send('winget:log', { type: 'error',  text: d.toString('utf8') }));
 
   proc.on('close', code => {
+    activeUpgradeProc = null;
+    if (isUpgradeCancelled) return;
     event.sender.send('winget:log', {
       type: code === 0 ? 'success' : 'warning',
       text: code === 0
@@ -1174,6 +1383,8 @@ ipcMain.on('winget:upgrade-all', (event) => {
   });
 
   proc.on('error', err => {
+    activeUpgradeProc = null;
+    if (isUpgradeCancelled) return;
     event.sender.send('winget:log', { type: 'error', text: `\n✖ Error: ${err.message}` });
     event.sender.send('winget:done', { success: false });
   });
@@ -1262,6 +1473,8 @@ ipcMain.handle('apps:list-installed', async () => {
 });
 
 ipcMain.on('apps:uninstall-clean', (event, appInfo) => {
+  isUninstallCancelled = false;
+  activeUninstallProc = null;
   const { name, publisher, uninstallString, installLocation, id, createRestorePoint } = appInfo;
 
   if (!uninstallString) {
@@ -1370,6 +1583,7 @@ ipcMain.on('apps:uninstall-clean', (event, appInfo) => {
 
   // ─── FASE 3 & 4: Escaneo Heurístico Protegido y Purga Segura ─────────────────
   const runDeepHeuristicPurge = () => {
+    if (isUninstallCancelled) return;
     if (isFinished) return;
     isFinished = true;
 
@@ -1666,6 +1880,7 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
     ], {
       windowsHide: true,
     });
+    activeUninstallProc = cleanProc;
 
     let summaryData = null;
 
@@ -1702,7 +1917,9 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
     const finalizeClean = () => {
       if (isCleanDone) return;
       isCleanDone = true;
+      activeUninstallProc = null;
       try { if (fs.existsSync(tmpCleanPath)) fs.unlinkSync(tmpCleanPath); } catch (_) {}
+      if (isUninstallCancelled) return;
 
       const s = summaryData || { deletedDirs: 0, purgedKeys: 0, rebootFiles: 0, killedProcs: 0, stoppedServices: 0 };
       event.sender.send('apps:uninstall-log', {
@@ -1722,7 +1939,9 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
     cleanProc.on('close', finalizeClean);
 
     cleanProc.on('error', (err) => {
+      activeUninstallProc = null;
       try { if (fs.existsSync(tmpCleanPath)) fs.unlinkSync(tmpCleanPath); } catch (_) {}
+      if (isUninstallCancelled) return;
       event.sender.send('apps:uninstall-log', { type: 'error', text: `✖ Error al ejecutar motor de limpieza: ${err.message}\n` });
       event.sender.send('apps:uninstall-done', { success: false });
     });
@@ -1731,6 +1950,7 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
   // ─── FASE 2: Ejecución Inteligente del Desinstalador Oficial ────────────────
   let purgeStarted = false;
   const triggerPurge = (reason, code) => {
+    if (isUninstallCancelled) return;
     if (purgeStarted) return;
     purgeStarted = true;
     ipcMain.removeAllListeners('apps:force-proceed-cleanup');
@@ -1760,11 +1980,11 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
     const epicUrl = epicMatch ? epicMatch[0] : null;
     const cmd = epicUrl ? `Start-Process '${epicUrl}'` : fixedUninstallString;
 
-    spawn('powershell.exe', ['-NoProfile', '-Command', cmd], { windowsHide: true });
+    activeUninstallProc = spawn('powershell.exe', ['-NoProfile', '-Command', cmd], { windowsHide: true });
 
     // Para juegos de launcher, el cliente de Epic gestiona la desinstalación
     setTimeout(() => {
-      if (!purgeStarted) {
+      if (!purgeStarted && !isUninstallCancelled) {
         event.sender.send('apps:uninstall-log', {
           type: 'info',
           text: `\nℹ Cuando la desinstalación en Epic Games termine, pulsa en la barra inferior 'El desinstalador ya terminó' para limpiar residuos de este juego.\n`
@@ -1787,10 +2007,10 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
     const steamUrl = steamMatch ? steamMatch[0] : null;
     const cmd = steamUrl ? `Start-Process '${steamUrl}'` : fixedUninstallString;
 
-    spawn('powershell.exe', ['-NoProfile', '-Command', cmd], { windowsHide: true });
+    activeUninstallProc = spawn('powershell.exe', ['-NoProfile', '-Command', cmd], { windowsHide: true });
 
     setTimeout(() => {
-      if (!purgeStarted) {
+      if (!purgeStarted && !isUninstallCancelled) {
         event.sender.send('apps:uninstall-log', {
           type: 'info',
           text: `\nℹ Cuando la desinstalación en Steam termine, pulsa en la barra inferior 'El desinstalador ya terminó' para limpiar residuos de este juego.\n`
@@ -1809,16 +2029,21 @@ Write-Output "SUMMARY|$deletedDirs|$purgedKeys|$rebootFiles|$killedProcs|$stoppe
       windowsHide: false,
       stdio: 'ignore'
     });
+    activeUninstallProc = proc;
 
     proc.on('exit', (code) => {
+      activeUninstallProc = null;
       triggerPurge('exit', code);
     });
 
     proc.on('close', (code) => {
+      activeUninstallProc = null;
       triggerPurge('close', code);
     });
 
     proc.on('error', (err) => {
+      activeUninstallProc = null;
+      if (isUninstallCancelled) return;
       event.sender.send('apps:uninstall-log', { type: 'warning', text: `[FASE 2] Aviso al ejecutar desinstalador: ${err.message}. Continuando con purga segura...\n` });
       triggerPurge('error');
     });
@@ -2531,7 +2756,7 @@ ipcMain.handle('restore:delete-all', async () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const GITHUB_OWNER = 'joselyky';
 const GITHUB_REPO = 'Wingetix';
-const APP_CURRENT_VERSION = app.getVersion() || '1.1.0';
+const APP_CURRENT_VERSION = app.getVersion() || '1.1.1';
 
 /**
  * Compare two semver version strings.
@@ -2795,7 +3020,6 @@ ipcMain.handle('app:install-update', async (_event, filePath) => {
     return { success: false, error: err.message };
   }
 });
-
 ipcMain.handle('app:open-external', async (_event, url) => {
   if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
     await shell.openExternal(url);
@@ -2835,5 +3059,240 @@ ipcMain.handle('app:get-installer-language', async () => {
   return null;
 });
 
+// ─── Storage & Installer Cleaner Module ───────────────────────────────────────
+const CLEANER_CATEGORIES_DEF = [
+  {
+    id: 'winget-cache',
+    nameKey: 'cleaner_cat_winget_title',
+    descKey: 'cleaner_cat_winget_desc',
+    icon: 'package',
+    riskLevel: 'safe',
+    paths: () => [
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages'),
+      path.join(process.env.LOCALAPPDATA || '', 'Packages', 'Microsoft.DesktopAppInstaller_8wekyb3d8bbwe', 'LocalCache')
+    ]
+  },
+  {
+    id: 'user-temp',
+    nameKey: 'cleaner_cat_temp_title',
+    descKey: 'cleaner_cat_temp_desc',
+    icon: 'flame',
+    riskLevel: 'safe',
+    paths: () => [
+      os.tmpdir()
+    ]
+  },
+  {
+    id: 'crash-dumps',
+    nameKey: 'cleaner_cat_dumps_title',
+    descKey: 'cleaner_cat_dumps_desc',
+    icon: 'activity',
+    riskLevel: 'safe',
+    paths: () => [
+      path.join(process.env.LOCALAPPDATA || '', 'CrashDumps'),
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'Windows', 'WER', 'ReportArchive'),
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'Windows', 'WER', 'ReportQueue'),
+      path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'Windows', 'WER', 'Temp')
+    ]
+  },
+  {
+    id: 'system-temp',
+    nameKey: 'cleaner_cat_system_title',
+    descKey: 'cleaner_cat_system_desc',
+    icon: 'layers',
+    riskLevel: 'safe',
+    paths: () => [
+      path.join(process.env.SystemRoot || 'C:\\Windows', 'Temp')
+    ]
+  }
+];
 
+function formatCleanerBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+}
 
+function scanFolderRecursive(dirPath, maxDepth = 4) {
+  let size = 0;
+  let count = 0;
+  const files = [];
+  if (!dirPath || !fs.existsSync(dirPath)) return { size, count, files };
+
+  function recurse(current, depth) {
+    if (depth > maxDepth) return;
+    try {
+      const entries = fs.readdirSync(current, { withFileTypes: true });
+      for (const entry of entries) {
+        const full = path.join(current, entry.name);
+        try {
+          if (entry.isDirectory()) {
+            recurse(full, depth + 1);
+          } else if (entry.isFile()) {
+            const st = fs.statSync(full);
+            size += st.size;
+            count++;
+            files.push({ path: full, size: st.size });
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  recurse(dirPath, 0);
+  return { size, count, files };
+}
+
+function removeEmptyDirs(dirPath, isRoot = true) {
+  try {
+    if (!fs.existsSync(dirPath)) return;
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const ent of entries) {
+      if (ent.isDirectory()) {
+        removeEmptyDirs(path.join(dirPath, ent.name), false);
+      }
+    }
+    if (!isRoot) {
+      const remaining = fs.readdirSync(dirPath);
+      if (remaining.length === 0) {
+        try { fs.rmdirSync(dirPath); } catch (_) {}
+      }
+    }
+  } catch (_) {}
+}
+
+let lastScanResults = null;
+
+ipcMain.handle('cleaner:scan', async () => {
+  try {
+    const categories = [];
+    let overallSize = 0;
+    let overallCount = 0;
+
+    for (const catDef of CLEANER_CATEGORIES_DEF) {
+      const targetPaths = catDef.paths().filter(p => p && fs.existsSync(p));
+      let catSize = 0;
+      let catCount = 0;
+      const catFiles = [];
+
+      for (const p of targetPaths) {
+        const res = scanFolderRecursive(p);
+        catSize += res.size;
+        catCount += res.count;
+        catFiles.push(...res.files);
+      }
+
+      overallSize += catSize;
+      overallCount += catCount;
+
+      categories.push({
+        id: catDef.id,
+        nameKey: catDef.nameKey,
+        descKey: catDef.descKey,
+        icon: catDef.icon,
+        riskLevel: catDef.riskLevel,
+        primaryPath: targetPaths[0] || '',
+        allPaths: targetPaths,
+        size: catSize,
+        sizeFormatted: formatCleanerBytes(catSize),
+        count: catCount,
+        files: catFiles
+      });
+    }
+
+    lastScanResults = {
+      categories,
+      totalSize: overallSize,
+      totalSizeFormatted: formatCleanerBytes(overallSize),
+      totalCount: overallCount,
+      scanTime: Date.now()
+    };
+
+    return {
+      success: true,
+      data: lastScanResults
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+});
+
+ipcMain.handle('cleaner:clean', async (event, categoryIds) => {
+  try {
+    if (!lastScanResults || !Array.isArray(categoryIds) || categoryIds.length === 0) {
+      return { success: false, error: 'No categories selected or scan expired' };
+    }
+
+    const selectedCategories = lastScanResults.categories.filter(c => categoryIds.includes(c.id));
+    const allFiles = [];
+    for (const c of selectedCategories) {
+      allFiles.push(...c.files);
+    }
+
+    const totalFiles = allFiles.length;
+    let deletedCount = 0;
+    let skippedCount = 0;
+    let freedBytes = 0;
+    const startTime = Date.now();
+
+    for (let i = 0; i < totalFiles; i++) {
+      const file = allFiles[i];
+      try {
+        fs.unlinkSync(file.path);
+        freedBytes += file.size;
+        deletedCount++;
+      } catch (_) {
+        skippedCount++;
+      }
+
+      if (i % 25 === 0 || i === totalFiles - 1) {
+        const percent = Math.min(100, Math.round(((i + 1) / totalFiles) * 100));
+        event.sender.send('cleaner:progress', {
+          current: i + 1,
+          total: totalFiles,
+          percent,
+          freedBytes,
+          freedFormatted: formatCleanerBytes(freedBytes),
+          deletedCount,
+          skippedCount,
+          currentFile: path.basename(file.path)
+        });
+      }
+    }
+
+    for (const c of selectedCategories) {
+      for (const p of c.allPaths) {
+        removeEmptyDirs(p, true);
+      }
+    }
+
+    lastScanResults = null;
+
+    return {
+      success: true,
+      freedBytes,
+      freedFormatted: formatCleanerBytes(freedBytes),
+      deletedCount,
+      skippedCount,
+      elapsedMs: Date.now() - startTime
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('cleaner:open-folder', async (_e, folderPath) => {
+  try {
+    if (folderPath && fs.existsSync(folderPath)) {
+      await shell.openPath(folderPath);
+      return { success: true };
+    }
+    return { success: false, error: 'Folder does not exist' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});

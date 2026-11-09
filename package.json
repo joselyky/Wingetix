@@ -1,6 +1,6 @@
 {
   "name": "wingetix",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Panel de control para gestionar actualizaciones de software via winget",
   "main": "main.js",
   "author": "Wingetix",

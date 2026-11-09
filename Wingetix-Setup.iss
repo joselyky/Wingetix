@@ -2,7 +2,7 @@
 ; Permite empaquetar la carpeta compilada 'Wingetix-win32-x64' con activador de WinGet integrado y selector de idioma
 
 #define MyAppName "Wingetix"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "Wingetix"
 #define MyAppExeName "Wingetix.exe"
 

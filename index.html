@@ -39,7 +39,7 @@
               <span class="dropdown-header-title">Wingetix</span>
               <span class="dropdown-header-sub" data-i18n="app_subtitle">Control & Cleaner Panel</span>
             </div>
-            <span class="dropdown-version-pill">v1.1.0</span>
+            <span class="dropdown-version-pill">v1.1.1</span>
           </div>
 
           <div class="titlebar-dropdown-divider"></div>
@@ -48,7 +48,18 @@
 
           <button id="menu-lang-en" class="titlebar-dropdown-item active" role="menuitem">
             <div class="dropdown-item-left">
-              <span class="lang-flag-badge">EN</span>
+              <span class="lang-flag-badge" title="English / United Kingdom">
+                <svg class="lang-flag-img" width="24" height="16" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <clipPath id="uk-clip"><rect width="60" height="40" rx="2"/></clipPath>
+                  <g clip-path="url(#uk-clip)">
+                    <rect width="60" height="40" fill="#012169"/>
+                    <path d="M0 0 L60 40 M60 0 L0 40" stroke="#ffffff" stroke-width="8"/>
+                    <path d="M0 0 L60 40 M60 0 L0 40" stroke="#c8102e" stroke-width="4"/>
+                    <path d="M30 0 V40 M0 20 H60" stroke="#ffffff" stroke-width="12"/>
+                    <path d="M30 0 V40 M0 20 H60" stroke="#c8102e" stroke-width="7"/>
+                  </g>
+                </svg>
+              </span>
               <div class="dropdown-item-text">
                 <span class="dropdown-item-primary">English</span>
                 <span class="dropdown-item-secondary" data-i18n="menu_lang_en_sub">Default</span>
@@ -61,7 +72,28 @@
 
           <button id="menu-lang-es" class="titlebar-dropdown-item" role="menuitem">
             <div class="dropdown-item-left">
-              <span class="lang-flag-badge">ES</span>
+              <span class="lang-flag-badge" title="Español / España">
+                <svg class="lang-flag-img" width="24" height="16" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <clipPath id="es-clip"><rect width="60" height="40" rx="2"/></clipPath>
+                  <g clip-path="url(#es-clip)">
+                    <rect width="60" height="40" fill="#c60b1e"/>
+                    <rect y="10" width="60" height="20" fill="#ffc400"/>
+                    <g transform="translate(13, 13)">
+                      <!-- Corona Real -->
+                      <path d="M4 1.5 L6 4 L8 1.5 L10 4 L12 1.5 L11 5 L5 5 Z" fill="#c60b1e"/>
+                      <circle cx="8" cy="1" r="1" fill="#ffc400"/>
+                      <!-- Escudo cuartelado -->
+                      <path d="M5 5 H11 V10 C11 12.5 8 14 8 14 C8 14 5 12.5 5 10 Z" fill="#c60b1e" stroke="#fff" stroke-width="0.6"/>
+                      <path d="M8 5 V13.5 M5 9 H11" stroke="#ffc400" stroke-width="0.6"/>
+                      <!-- Columnas de Hercules -->
+                      <rect x="2" y="5.5" width="1.2" height="7.5" fill="#f8fafc"/>
+                      <circle cx="2.6" cy="4.8" r="0.8" fill="#ffc400"/>
+                      <rect x="12.8" y="5.5" width="1.2" height="7.5" fill="#f8fafc"/>
+                      <circle cx="13.4" cy="4.8" r="0.8" fill="#ffc400"/>
+                    </g>
+                  </g>
+                </svg>
+              </span>
               <div class="dropdown-item-text">
                 <span class="dropdown-item-primary">Español</span>
                 <span class="dropdown-item-secondary" data-i18n="menu_lang_es_sub">Spanish</span>
@@ -93,7 +125,7 @@
           </button>
         </div>
       </div>
-      <span id="titlebar-app-version" class="app-version-badge" data-i18n-title="titlebar_version_tooltip" title="Installed version: v1.1.0. Click to check for updates on GitHub">v1.1.0</span>
+      <span id="titlebar-app-version" class="app-version-badge" data-i18n-title="titlebar_version_tooltip" title="Installed version: v1.1.1. Click to check for updates on GitHub">v1.1.1</span>
     </div>
     <div class="titlebar-right">
       <div class="titlebar-controls">
@@ -123,11 +155,6 @@
             <h1 class="sidebar-title">Wingetix</h1>
             <p class="sidebar-subtitle" data-i18n="app_subtitle">Control & Cleaner Panel</p>
           </div>
-          <button id="btn-check-app-update" class="btn-check-update-icon" data-i18n-title="check_app_update_title" data-i18n-aria="check_app_update_title" title="Check for new Wingetix version on GitHub" aria-label="Check for new Wingetix version on GitHub">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -151,6 +178,15 @@
             <polyline points="9 12 11 14 15 10"/>
           </svg>
           <span data-i18n="nav_restore">Restore Points</span>
+        </button>
+        <button id="nav-cleaner" class="nav-nav-btn" data-i18n-aria="nav_cleaner" aria-label="Storage Cleaner">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m14 12-8.5 8.5a2.12 2.12 0 1 1-3-3L11 9"/>
+            <path d="M12 4l8 8"/>
+            <path d="M18 2l4 4"/>
+            <path d="m15 5 4 4"/>
+          </svg>
+          <span data-i18n="nav_cleaner">Storage Cleaner</span>
         </button>
       </div>
 
@@ -303,6 +339,37 @@
           </button>
         </div>
       </div>
+
+      <!-- Storage Cleaner Controls Wrapper -->
+      <div id="sidebar-cleaner-controls" class="sidebar-section-controls hidden">
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card glass">
+            <span id="stat-cleaner-reclaimable" class="stat-number">—</span>
+            <span class="stat-label" data-i18n="stat_cleaner_reclaimable">Reclaimable Space</span>
+          </div>
+          <div class="stat-card glass">
+            <span id="stat-cleaner-selected" class="stat-number">—</span>
+            <span class="stat-label" data-i18n="stat_cleaner_selected">Selected to Clean</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button id="btn-scan-cleaner" class="btn btn-primary" data-i18n-aria="btn_scan_cleaner" aria-label="Analyze Space">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <span data-i18n="btn_scan_cleaner">Analyze Space</span>
+          </button>
+          <button id="btn-clean-storage" class="btn btn-accent" data-i18n-aria="btn_clean_storage" aria-label="Clean Selected Files" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+            <span data-i18n="btn_clean_storage">Clean Selected Files</span>
+          </button>
+          <div class="quick-select-actions" style="display: flex; gap: 8px; margin-top: 4px;">
+            <button id="btn-cleaner-select-all" class="btn btn-ghost" style="flex: 1; padding: 6px 8px; font-size: 11px;" data-i18n="btn_cleaner_select_all">Select All</button>
+            <button id="btn-cleaner-deselect-all" class="btn btn-ghost" style="flex: 1; padding: 6px 8px; font-size: 11px;" data-i18n="btn_cleaner_deselect_all">Deselect All</button>
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Content -->
@@ -441,6 +508,41 @@
                 <span data-i18n="tab_games">Games</span>
                 <span id="badge-games" class="tab-badge">0</span>
               </button>
+              <button id="tab-developer" class="tab-btn" data-i18n-aria="tab_developer" aria-label="Developer & Tools">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                <span data-i18n="tab_developer">Developer & Tools</span>
+                <span id="badge-developer" class="tab-badge">0</span>
+              </button>
+              <button id="tab-pinned" class="tab-btn" data-i18n-aria="tab_pinned" aria-label="Pinned Apps">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-2l-2-2V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v8l-2 2v2z"></path></svg>
+                <span data-i18n="tab_pinned">Pinned / Paused</span>
+                <span id="badge-pinned" class="tab-badge">0</span>
+              </button>
+            </div>
+
+            <!-- Developer Tools Warning Banner for Updates -->
+            <div id="updates-dev-warning-banner" class="installed-system-warning dev-warning hidden">
+              <div class="system-warning-icon dev-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              </div>
+              <div class="system-warning-content">
+                <div class="system-warning-title" data-i18n="updates_dev_warning_title">💻 Development Environments & SDKs</div>
+                <div class="system-warning-desc" data-i18n="updates_dev_warning_desc">Updating developer tools like Python or Visual Studio can modify PATH environment variables or package binaries. Update with awareness of your local project setups.</div>
+              </div>
+            </div>
+
+            <!-- Pinned Apps Warning Banner for Updates -->
+            <div id="updates-pinned-info-banner" class="installed-system-warning pinned-banner hidden">
+              <div class="system-warning-icon pinned-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="17" x2="12" y2="22"></line>
+                  <path d="M5 17h14v-2l-2-2V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v8l-2 2v2z"></path>
+                </svg>
+              </div>
+              <div class="system-warning-content">
+                <div class="system-warning-title" data-i18n="updates_pinned_banner_title">📌 Pausa de Actualizaciones (Versiones Fijadas)</div>
+                <div class="system-warning-desc" data-i18n="updates_pinned_banner_desc">Estas aplicaciones están bloqueadas en su versión actual mediante el sistema de pines de Windows. No se actualizarán ni se incluirán en las actualizaciones automáticas hasta que decidas desanclarlas.</div>
+              </div>
             </div>
             <table class="package-table" aria-label="Package updates list">
               <thead>
@@ -467,6 +569,9 @@
                   <th class="col-size th-sortable" data-sort="size" title="Size">
                     <span data-i18n="col_size">Size</span>
                     <span class="sort-indicator"></span>
+                  </th>
+                  <th class="col-pin" style="width: 52px; text-align: center;" data-i18n-title="col_pin" title="Pin / Unpin">
+                    <span data-i18n="col_pin">Pin</span>
                   </th>
                 </tr>
               </thead>
@@ -606,11 +711,27 @@
                 <span data-i18n="tab_games">Games</span>
                 <span id="badge-installed-games" class="tab-badge">0</span>
               </button>
+              <button id="tab-installed-developer" class="tab-btn" data-i18n-aria="tab_installed_developer" aria-label="Developer & Tools">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                <span data-i18n="tab_installed_developer">Developer & Tools</span>
+                <span id="badge-installed-developer" class="tab-badge">0</span>
+              </button>
               <button id="tab-installed-system" class="tab-btn" data-i18n-aria="tab_installed_system" aria-label="System Components">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icon"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
                 <span data-i18n="tab_installed_system">System Components</span>
                 <span id="badge-installed-system" class="tab-badge">0</span>
               </button>
+            </div>
+
+            <!-- Developer Tools Warning Banner for Uninstaller -->
+            <div id="installed-dev-warning-banner" class="installed-system-warning dev-warning hidden">
+              <div class="system-warning-icon dev-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+              </div>
+              <div class="system-warning-content">
+                <div class="system-warning-title" data-i18n="installed_dev_warning_title">💻 Development Environments & Runtimes</div>
+                <div class="system-warning-desc" data-i18n="installed_dev_warning_desc">This section contains programming languages, compilers, and developer SDKs (Python, Visual Studio, Git, Node.js). Modifying or uninstalling them can affect virtual environments, CLI scripts, and project dependencies.</div>
+              </div>
             </div>
 
             <!-- System Components Warning Banner for Uninstaller -->
@@ -1060,6 +1181,86 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════
+           Storage & Cache Cleaner View
+      ═══════════════════════════════════════════════════════════════ -->
+      <div id="main-cleaner-view" class="main-view-wrapper hidden">
+        <!-- Top Bar -->
+        <div class="topbar">
+          <div class="topbar-left">
+            <div class="cleaner-topbar-info">
+              <span class="cleaner-topbar-title" data-i18n="cleaner_view_title">Storage & Cache Cleaner</span>
+              <span class="cleaner-topbar-sub" data-i18n="cleaner_view_sub">Scan and reclaim disk space from WinGet installer caches, temporary setup files, and crash dumps</span>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="btn-cleaner-scan-topbar" class="btn btn-primary btn-sm" data-i18n-aria="btn_scan_cleaner" aria-label="Analyze Space">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <span data-i18n="btn_scan_cleaner">Analyze Space</span>
+            </button>
+            <button id="btn-cleaner-clean-topbar" class="btn btn-accent btn-sm" data-i18n-aria="btn_clean_storage" aria-label="Clean Selected Files" disabled>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+              <span data-i18n="btn_clean_storage">Clean Selected Files</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="cleaner-content-scroll">
+          <!-- Hero Banner -->
+          <div class="cleaner-hero-banner glass">
+            <div class="cleaner-hero-glow"></div>
+            <div class="cleaner-hero-content">
+              <div class="cleaner-hero-badges">
+                <span id="cleaner-status-badge" class="cleaner-pill-badge ready" data-i18n="cleaner_badge_ready">Ready to Scan</span>
+                <span class="cleaner-pill-badge safe" data-i18n="cleaner_badge_safe">Safe to Clean</span>
+              </div>
+              <h2 id="cleaner-hero-size" class="cleaner-hero-size">—</h2>
+              <p id="cleaner-hero-subtitle" class="cleaner-hero-subtitle" data-i18n="cleaner_hero_desc">Wingetix detects temporary installer packages (.msi, .exe, .msix), setup extractions, and diagnostic crash dumps that are safe to remove without affecting installed software.</p>
+            </div>
+            <div class="cleaner-hero-action">
+              <button id="btn-cleaner-hero-scan" class="btn btn-primary btn-large">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <span data-i18n="btn_scan_cleaner">Analyze Space</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Cleaning Progress Card (hidden when idle) -->
+          <div id="cleaner-progress-card" class="cleaner-progress-card glass hidden">
+            <div class="cleaner-progress-header">
+              <div class="cleaner-progress-title-box">
+                <svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                <span id="cleaner-progress-title" data-i18n="cleaner_progress_title">Cleaning Storage...</span>
+              </div>
+              <span id="cleaner-progress-percent" class="cleaner-progress-percent">0%</span>
+            </div>
+            <div class="cleaner-progress-bar-track">
+              <div id="cleaner-progress-bar-fill" class="cleaner-progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="cleaner-progress-details">
+              <span id="cleaner-progress-current-file" class="cleaner-progress-file-text">Preparing cleanup...</span>
+              <span id="cleaner-progress-stats-text" class="cleaner-progress-stats-text">0 files processed</span>
+            </div>
+          </div>
+
+          <!-- Category Cards Grid -->
+          <div id="cleaner-cards-grid" class="cleaner-cards-grid">
+            <!-- Dynamic Category Cards injected by renderer -->
+          </div>
+
+          <!-- Clean Completed / Empty State -->
+          <div id="cleaner-completed-banner" class="cleaner-completed-banner glass hidden">
+            <div class="cleaner-completed-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="cleaner-completed-text">
+              <h3 id="cleaner-completed-title" data-i18n="cleaner_empty_title">Your Storage is Clean!</h3>
+              <p id="cleaner-completed-desc" data-i18n="cleaner_empty_desc">No unnecessary installer packages or cache residue found on your system.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
            Live Update & Download Queue Drawer
       ═══════════════════════════════════════════════════════════════ -->
       <div id="queue-drawer" class="queue-drawer glass hidden">
@@ -1078,6 +1279,14 @@
             </div>
           </div>
           <div class="queue-header-right">
+            <button id="btn-cancel-queue" class="btn-cancel-queue hidden" title="Cancelar todas las actualizaciones restantes" data-i18n-title="btn_cancel_queue" aria-label="Cancel all updates">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+              <span data-i18n="btn_cancel_queue">Cancelar Todo</span>
+            </button>
             <div id="queue-global-stat" class="queue-global-stat hidden">
               <span id="queue-global-mb" class="queue-stat-badge">0.0 MB / 0.0 MB</span>
             </div>
@@ -1111,6 +1320,14 @@
             <span id="status-queue-label">Queue (0)</span>
           </button>
           <button id="btn-force-clean" class="btn btn-warning btn-xs hidden" style="margin-left: 12px; font-size: 11px; padding: 4px 10px; border-radius: 4px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; cursor: pointer;" title="Click here if the official uninstaller already finished to immediately proceed with deep scan" data-i18n="btn_force_clean_label">Uninstaller finished → Deep clean</button>
+          <button id="btn-cancel-operation" class="btn-cancel-operation hidden" title="Cancelar operación actual" data-i18n-title="btn_cancel_operation" aria-label="Cancel operation">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            <span id="btn-cancel-operation-text" data-i18n="btn_cancel_operation">Cancelar</span>
+          </button>
         </div>
         <div class="status-right">
           <div class="progress-details">
@@ -1195,7 +1412,7 @@
             <div class="app-update-versions">
               <div class="ver-pill current">
                 <span class="ver-label" data-i18n="app_update_cur_ver">Current Version</span>
-                <span id="app-update-cur-ver" class="ver-tag">v1.1.0</span>
+                <span id="app-update-cur-ver" class="ver-tag">v1.1.1</span>
               </div>
               <div class="ver-arrow">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>

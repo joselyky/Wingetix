@@ -25,6 +25,7 @@ const translations = {
     nav_uninstaller: "Uninstaller",
     nav_gpu: "Graphics & Control",
     nav_restore: "Restore Points",
+    nav_cleaner: "Storage Cleaner",
 
     // Sidebar System Info Card
     sys_title: "System",
@@ -64,6 +65,14 @@ const translations = {
     btn_create_restore_sidebar: "Create Point Now",
     btn_open_rstrui: "Windows Recovery Wizard",
 
+    // Sidebar Controls: Storage Cleaner
+    stat_cleaner_reclaimable: "Reclaimable Space",
+    stat_cleaner_selected: "Selected to Clean",
+    btn_scan_cleaner: "Analyze Space",
+    btn_clean_storage: "Clean Selected Files",
+    btn_cleaner_select_all: "Select All",
+    btn_cleaner_deselect_all: "Deselect All",
+
     // Main Updates View
     search_updates_placeholder: "Filter applications... (Ctrl+F)",
     sort_dropdown_title: "Sort application list",
@@ -89,6 +98,9 @@ const translations = {
     // Tabs & Table Headers
     tab_everyday: "Everyday Apps",
     tab_games: "Games",
+    tab_developer: "Developer & Tools",
+    tab_pinned: "Pinned / Paused",
+    tab_installed_developer: "Developer & Tools",
     tab_installed_system: "System Components",
     col_app: "Application",
     col_id: "Package ID",
@@ -96,6 +108,10 @@ const translations = {
     col_available: "Available",
     col_size: "Size",
     col_publisher: "Publisher",
+    col_pin: "Pin",
+    btn_pin_tooltip: "Lock version (Pause updates for this app)",
+    btn_unpin_action: "Unpin",
+    btn_unpin_tooltip: "Unpin and resume automatic updates",
 
     // Main Uninstaller View
     search_installed_placeholder: "Search installed applications... (Ctrl+F)",
@@ -106,7 +122,7 @@ const translations = {
     sort_installed_publisher_desc: "Publisher (Z - A)",
     sort_installed_size_desc: "Size (Largest first)",
     sort_installed_size_asc: "Size (Smallest first)",
-    btn_uninstall_top: "Uninstall ({count})",
+    btn_uninstall_top: "Uninstall",
 
     // Empty / Loading States: Uninstaller
     state_installed_idle_title: "Ready to scan",
@@ -118,6 +134,12 @@ const translations = {
     // Uninstaller Warning Banner
     installed_system_warning_title: "⚠️ Critical System Components & Drivers",
     installed_system_warning_desc: "This section contains shared libraries (Visual C++, .NET, DirectX) and essential Windows drivers. Uninstalling them may cause applications, games, or Windows itself to crash or corrupt. Modify with extreme caution.",
+    installed_dev_warning_title: "💻 Development Environments & Runtimes",
+    installed_dev_warning_desc: "This section contains programming languages, compilers, and developer SDKs (Python, Visual Studio, Git, Node.js). Modifying or uninstalling them can affect virtual environments, CLI scripts, and project dependencies.",
+    updates_dev_warning_title: "💻 Development Environments & SDKs",
+    updates_dev_warning_desc: "Updating developer tools like Python or Visual Studio can modify PATH environment variables or package binaries. Update with awareness of your local project setups.",
+    updates_pinned_banner_title: "📌 Update Paused (Pinned Versions)",
+    updates_pinned_banner_desc: "These applications are locked to their current version using the Windows package pinning system. They will not update or appear in batch updates until you unpin them.",
 
     // GPU View
     gpu_view_title: "Graphics & Performance Center",
@@ -249,6 +271,12 @@ const translations = {
     // Modals & General Buttons
     confirm_modal_title: "Action Confirmation",
     btn_cancel: "Cancel",
+    btn_cancel_operation: "Cancel",
+    btn_cancel_update: "Cancel Update",
+    btn_cancel_uninstall: "Cancel Uninstall",
+    btn_cancel_queue: "Cancel All",
+    toast_operation_cancelled: "Operation cancelled by user.",
+    status_cancelling: "Cancelling operation...",
     confirm_btn_update: "Confirm and Proceed",
     modal_security_title: "Security Warning",
     modal_confirm: "Confirm",
@@ -369,7 +397,43 @@ const translations = {
     toast_no_restore_points: "No restore points loaded to delete.",
     toast_opening_rstrui: "Opening official Windows System Restore wizard (rstrui)...",
     toast_opening_rstrui_item: "Opening official Windows System Restore wizard for point #{seq}...",
-    toast_opening_protection_settings: "Opening System Protection Settings..."
+    toast_opening_protection_settings: "Opening System Protection Settings...",
+
+    // Main Storage Cleaner View
+    cleaner_view_title: "Storage & Cache Cleaner",
+    cleaner_view_sub: "Scan and reclaim disk space from WinGet installer caches, temporary setup files, and crash dumps",
+    cleaner_hero_title: "Reclaimable Disk Space",
+    cleaner_hero_desc: "Wingetix detects temporary installer packages (.msi, .exe, .msix), setup extractions, and diagnostic crash dumps that are safe to remove without affecting installed software.",
+    cleaner_badge_safe: "Safe to Clean",
+    cleaner_badge_ready: "Ready to Scan",
+    cleaner_badge_analyzing: "Analyzing Disk...",
+    cleaner_badge_cleaning: "Cleaning Storage...",
+    cleaner_badge_cleaned: "System Cleaned!",
+    cleaner_cat_winget_title: "WinGet Packages & Installer Cache",
+    cleaner_cat_winget_desc: "Cached installer files (.exe, .msi, .msix) left behind after package downloads and updates",
+    cleaner_cat_temp_title: "User Temporary & Setup Files",
+    cleaner_cat_temp_desc: "Temporary cache files and unpack directories from installers and everyday software",
+    cleaner_cat_dumps_title: "Crash Memory Dumps & Diagnostics",
+    cleaner_cat_dumps_desc: "Memory dump files (.dmp, WER logs) generated after application crashes",
+    cleaner_cat_system_title: "Windows System Temp Files",
+    cleaner_cat_system_desc: "OS update logs and installer residue in the Windows system temp directory",
+    cleaner_card_open_folder: "Open Folder",
+    cleaner_files_count: "{count} files",
+    cleaner_zero_items: "0 files (0 B)",
+    cleaner_progress_title: "Cleaning Storage...",
+    cleaner_progress_file: "Deleting: {file}",
+    cleaner_progress_stats: "Freed: {freed} • {deleted} deleted, {skipped} skipped",
+    cleaner_empty_title: "Your Storage is Clean!",
+    cleaner_empty_desc: "No unnecessary installer packages or cache residue found on your system.",
+    cleaner_summary_freed: "Freed {size} of disk space across {count} files.",
+    cleaner_summary_skipped: "{count} active/locked files were safely skipped.",
+    confirm_clean_storage_title: "Clean Selected Storage",
+    confirm_clean_storage_msg: "You are about to delete {count} temporary installer and cache files ({size}) across selected categories.\n\n🛡️ ACTIVE PROTECTION:\nAny temporary file currently locked or in use by a running process will be safely skipped.\n\nDo you want to continue?",
+    confirm_clean_storage_btn: "Clean Selected Now",
+    toast_cleaner_started: "Starting safe cleanup...",
+    toast_cleaner_success: "Storage cleaned successfully! Freed {amount}.",
+    toast_cleaner_nothing: "Selected categories are already clean (0 B).",
+    toast_cleaner_error: "Cleanup failed: {err}"
   },
 
   es: {
@@ -393,6 +457,7 @@ const translations = {
     nav_uninstaller: "Desinstalador",
     nav_gpu: "Gráficos & Control",
     nav_restore: "Puntos de Restauración",
+    nav_cleaner: "Limpiador de Espacio",
 
     // Sidebar System Info Card
     sys_title: "Sistema",
@@ -432,6 +497,14 @@ const translations = {
     btn_create_restore_sidebar: "Crear Punto Ahora",
     btn_open_rstrui: "Asistente de Windows",
 
+    // Sidebar Controls: Storage Cleaner
+    stat_cleaner_reclaimable: "Espacio Liberable",
+    stat_cleaner_selected: "Seleccionado a Limpiar",
+    btn_scan_cleaner: "Analizar Espacio",
+    btn_clean_storage: "Limpiar Seleccionados",
+    btn_cleaner_select_all: "Seleccionar todo",
+    btn_cleaner_deselect_all: "Deseleccionar",
+
     // Main Updates View
     search_updates_placeholder: "Filtrar aplicaciones... (Ctrl+F)",
     sort_dropdown_title: "Ordenar lista de aplicaciones",
@@ -457,6 +530,9 @@ const translations = {
     // Tabs & Table Headers
     tab_everyday: "Aplicaciones Cotidianas",
     tab_games: "Juegos",
+    tab_developer: "Desarrollo y Herramientas",
+    tab_pinned: "Pausadas / Fijadas",
+    tab_installed_developer: "Desarrollo y Herramientas",
     tab_installed_system: "Componentes del Sistema",
     col_app: "Aplicación",
     col_id: "ID del Paquete",
@@ -464,6 +540,10 @@ const translations = {
     col_available: "Disponible",
     col_size: "Tamaño",
     col_publisher: "Editor",
+    col_pin: "Pin",
+    btn_pin_tooltip: "Fijar versión (Pausar actualizaciones de esta app)",
+    btn_unpin_action: "Desanclar",
+    btn_unpin_tooltip: "Desanclar y reanudar actualizaciones automáticas",
 
     // Main Uninstaller View
     search_installed_placeholder: "Buscar aplicaciones instaladas... (Ctrl+F)",
@@ -474,7 +554,7 @@ const translations = {
     sort_installed_publisher_desc: "Editor (Z - A)",
     sort_installed_size_desc: "Tamaño (Mayor primero)",
     sort_installed_size_asc: "Tamaño (Menor primero)",
-    btn_uninstall_top: "Desinstalar ({count})",
+    btn_uninstall_top: "Desinstalar",
 
     // Empty / Loading States: Uninstaller
     state_installed_idle_title: "Listo para escanear",
@@ -486,6 +566,12 @@ const translations = {
     // Uninstaller Warning Banner
     installed_system_warning_title: "⚠️ Componentes y Controladores Críticos del Sistema",
     installed_system_warning_desc: "Esta sección contiene librerías compartidas (Visual C++, .NET, DirectX) y controladores esenciales de Windows. Desinstalarlos puede provocar que aplicaciones, juegos o el propio sistema operativo fallen o se corrompan. Modifícalos con extrema precaución.",
+    installed_dev_warning_title: "💻 Entornos de Desarrollo y Runtimes",
+    installed_dev_warning_desc: "Este apartado contiene lenguajes de programación, compiladores y herramientas de desarrollo (Python, Visual Studio, Git, Node.js). Desinstalarlos puede alterar entornos virtuales, dependencias de proyectos y comandos de consola.",
+    updates_dev_warning_title: "💻 Entornos de Desarrollo y SDKs",
+    updates_dev_warning_desc: "Actualizar herramientas como Python o Visual Studio puede modificar variables de entorno (PATH) o librerías instaladas. Actualiza según las necesidades de tus proyectos.",
+    updates_pinned_banner_title: "📌 Pausa de Actualizaciones (Versiones Fijadas)",
+    updates_pinned_banner_desc: "Estas aplicaciones están bloqueadas en su versión actual mediante el sistema de pines de Windows. No se actualizarán ni se incluirán en las actualizaciones automáticas hasta que decidas desanclarlas.",
 
     // GPU View
     gpu_view_title: "Centro de Rendimiento y Gráficos",
@@ -617,6 +703,12 @@ const translations = {
     // Modals & General Buttons
     confirm_modal_title: "Confirmación de Acción",
     btn_cancel: "Cancelar",
+    btn_cancel_operation: "Cancelar",
+    btn_cancel_update: "Cancelar Actualización",
+    btn_cancel_uninstall: "Cancelar Desinstalación",
+    btn_cancel_queue: "Cancelar Todo",
+    toast_operation_cancelled: "Operación cancelada por el usuario.",
+    status_cancelling: "Cancelando operación...",
     confirm_btn_update: "Confirmar y Continuar",
     modal_security_title: "Advertencia de Seguridad",
     modal_confirm: "Confirmar",
@@ -737,7 +829,43 @@ const translations = {
     toast_no_restore_points: "No hay puntos de restauración cargados para eliminar.",
     toast_opening_rstrui: "Abriendo Asistente de Recuperación de Windows (rstrui)...",
     toast_opening_rstrui_item: "Abriendo Asistente de Recuperación para el punto #{seq}...",
-    toast_opening_protection_settings: "Abriendo Configuración de Protección del Sistema..."
+    toast_opening_protection_settings: "Abriendo Configuración de Protección del Sistema...",
+
+    // Main Storage Cleaner View
+    cleaner_view_title: "Limpiador de Caché y Almacenamiento",
+    cleaner_view_sub: "Escanea y recupera espacio en disco eliminando instaladores de WinGet, residuos temporales y volcados de memoria",
+    cleaner_hero_title: "Espacio en Disco Liberable",
+    cleaner_hero_desc: "Wingetix detecta paquetes de instalación descargados (.msi, .exe, .msix), carpetas de extracción y registros de depuración que es completamente seguro eliminar sin afectar a tus programas.",
+    cleaner_badge_safe: "Limpieza Segura",
+    cleaner_badge_ready: "Listo para analizar",
+    cleaner_badge_analyzing: "Analizando Disco...",
+    cleaner_badge_cleaning: "Limpiando Almacenamiento...",
+    cleaner_badge_cleaned: "¡Sistema Optimizado!",
+    cleaner_cat_winget_title: "Caché de Instaladores WinGet",
+    cleaner_cat_winget_desc: "Instaladores descargados (.exe, .msi, .msix) que quedan almacenados tras actualizar paquetes",
+    cleaner_cat_temp_title: "Archivos Temporales de Usuario",
+    cleaner_cat_temp_desc: "Cachés temporales y carpetas de descompresión de instaladores y programas en uso",
+    cleaner_cat_dumps_title: "Volcados de Memoria y Diagnóstico",
+    cleaner_cat_dumps_desc: "Archivos de informe de fallos (.dmp, WER) generados tras bloqueos de aplicaciones",
+    cleaner_cat_system_title: "Temporales del Sistema Windows",
+    cleaner_cat_system_desc: "Registros de actualización y restos de instaladores en el directorio temporal de Windows",
+    cleaner_card_open_folder: "Abrir carpeta",
+    cleaner_files_count: "{count} archivos",
+    cleaner_zero_items: "0 archivos (0 B)",
+    cleaner_progress_title: "Limpiando Almacenamiento...",
+    cleaner_progress_file: "Eliminando: {file}",
+    cleaner_progress_stats: "Liberado: {freed} • {deleted} eliminados, {skipped} protegidos",
+    cleaner_empty_title: "¡Tu Almacenamiento está Limpio!",
+    cleaner_empty_desc: "No se encontraron residuos de instalación ni cachés temporales en tu sistema.",
+    cleaner_summary_freed: "Se liberaron {size} de espacio en disco en {count} archivos.",
+    cleaner_summary_skipped: "{count} archivos en uso fueron protegidos y omitidos con seguridad.",
+    confirm_clean_storage_title: "Limpiar Espacio Seleccionado",
+    confirm_clean_storage_msg: "Vas a eliminar {count} archivos temporales y paquetes ({size}) de las categorías seleccionadas.\n\n🛡️ PROTECCIÓN ACTIVA:\nCualquier archivo temporal que esté bloqueado o en uso por un programa activo se omitirá con total seguridad.\n\n¿Deseas continuar?",
+    confirm_clean_storage_btn: "Limpiar Seleccionados",
+    toast_cleaner_started: "Iniciando limpieza segura...",
+    toast_cleaner_success: "¡Limpieza completada con éxito! {amount} liberados.",
+    toast_cleaner_nothing: "Las categorías seleccionadas ya están limpias (0 B).",
+    toast_cleaner_error: "Error en la limpieza: {err}"
   }
 };
 

@@ -14,15 +14,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listUpgrades:             ()    => ipcRenderer.invoke('winget:list-upgrades'),
   upgradePackages:          (ids) => ipcRenderer.send('winget:upgrade-packages', ids),
   upgradeAll:               ()    => ipcRenderer.send('winget:upgrade-all'),
+  cancelUpgrade:            ()    => ipcRenderer.send('winget:cancel-upgrade'),
   enableWinGetInTerminal:   ()    => ipcRenderer.invoke('winget:enable-in-terminal'),
   exportPackages:           ()    => ipcRenderer.invoke('winget:export-packages'),
   importPackages:           ()    => ipcRenderer.invoke('winget:import-packages'),
+
+  // WinGet Pinning / Pausing operations
+  listPinned:               ()    => ipcRenderer.invoke('winget:pin-list'),
+  pinPackage:               (pkg) => ipcRenderer.invoke('winget:pin-add', pkg),
+  unpinPackage:             (id)  => ipcRenderer.invoke('winget:pin-remove', id),
 
   // WinGet live output listeners
   onLog:         (cb) => ipcRenderer.on('winget:log',          (_e, data) => cb(data)),
   onDone:        (cb) => ipcRenderer.on('winget:done',         (_e, data) => cb(data)),
   onQueueInit:   (cb) => ipcRenderer.on('winget:queue-init',   (_e, data) => cb(data)),
   onQueueUpdate: (cb) => ipcRenderer.on('winget:queue-update', (_e, data) => cb(data)),
+  onQueueCancel: (cb) => ipcRenderer.on('winget:queue-cancel', (_e, data) => cb(data)),
 
   // Remove listeners (cleanup)
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
@@ -33,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Clean Uninstaller
   listInstalledApps: () => ipcRenderer.invoke('apps:list-installed'),
   uninstallAppClean: (app) => ipcRenderer.send('apps:uninstall-clean', app),
+  cancelUninstall: () => ipcRenderer.send('apps:cancel-uninstall'),
   forceProceedCleanup: () => ipcRenderer.send('apps:force-proceed-cleanup'),
   onUninstallLog: (cb) => ipcRenderer.on('apps:uninstall-log', (_e, data) => cb(data)),
   onUninstallDone: (cb) => ipcRenderer.on('apps:uninstall-done', (_e, data) => cb(data)),
@@ -56,6 +64,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openSystemRestoreWizard: () => ipcRenderer.invoke('restore:open-wizard'),
   openSystemRestoreSettings: () => ipcRenderer.invoke('restore:open-settings'),
   enableSystemRestore: () => ipcRenderer.invoke('restore:enable'),
+
+  // Storage Cleaner APIs
+  scanCleaner: () => ipcRenderer.invoke('cleaner:scan'),
+  cleanStorage: (categoryIds) => ipcRenderer.invoke('cleaner:clean', categoryIds),
+  onCleanerProgress: (cb) => ipcRenderer.on('cleaner:progress', (_e, data) => cb(data)),
+  openCleanerFolder: (folderPath) => ipcRenderer.invoke('cleaner:open-folder', folderPath),
 
   // App Self-Updater APIs
   checkForAppUpdates: (opts) => ipcRenderer.invoke('app:check-for-updates', opts),
