@@ -7,6 +7,8 @@
   ### *The ultimate visual control panel to manage, batch-update, and cleanly uninstall software on Windows.*
 
   [![GitHub Release](https://img.shields.io/github/v/release/joselyky/Wingetix?color=6ee7b7&label=Release&style=for-the-badge)](https://github.com/joselyky/Wingetix/releases/latest)
+  [![Website](https://img.shields.io/badge/Website-wingetix.com-10b981?style=for-the-badge&logo=googlechrome&logoColor=white)](https://wingetix.com)
+  [![AlternativeTo](https://img.shields.io/badge/AlternativeTo-Listed-0284c7?style=for-the-badge)](https://alternativeto.net/software/wingetix/)
   [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4?style=for-the-badge&logo=windows)](https://github.com/joselyky/Wingetix)
   [![Engine](https://img.shields.io/badge/Engine-WinGet%20%2B%20Electron-4f8ef7?style=for-the-badge&logo=electron)](https://github.com/joselyky/Wingetix)
   [![License](https://img.shields.io/badge/License-GPLv3-34d399?style=for-the-badge)](LICENSE)
@@ -134,15 +136,21 @@ Wingetix is architected under a **zero-malware tolerance, full user control, and
 
 ## 📥 Download & Installation
 
-### Option 1: Guided Installer (.exe) — Recommended
-Download **`Wingetix Setup 1.1.1.exe`** from the official [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest).
+### Option 1: Microsoft WinGet (Terminal) — Fastest
+Install Wingetix with a single command from PowerShell or Windows Terminal:
+```powershell
+winget install wingetix
+```
+
+### Option 2: Guided Installer (.exe) — Recommended
+Download **`Wingetix.Setup.1.1.1.exe`** from the official [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest).
 - Guided setup wizard with multilingual selector.
 - Creates Desktop and Start Menu shortcuts.
 - Automatically enables and configures `winget` in your Windows terminal if absent.
 - Full uninstallation support from the Windows Control Panel.
 
-### Option 2: Portable Standalone (.exe)
-Download **`Wingetix 1.1.1.exe`** to run the tool standalone without installation (ideal for IT maintenance USB flash drives).
+### Option 3: Portable Standalone (.exe)
+Download **`Wingetix.1.1.1.exe`** to run the tool standalone without installation (ideal for IT maintenance USB flash drives).
 
 ---
 
