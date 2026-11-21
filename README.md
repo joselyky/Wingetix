@@ -31,7 +31,7 @@
   <br />
 
   <p align="center">
-    <img src="screenshot-v1.1.1.png" alt="Wingetix Interface Preview" width="940" style="max-width: 100%; border-radius: 12px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);" />
+    <img src="screenshot-v1.1.1-hd.png" alt="Wingetix Interface Preview" width="940" style="max-width: 100%; border-radius: 12px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);" />
   </p>
 
 </div>
