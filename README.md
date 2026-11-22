@@ -9,6 +9,7 @@
   [![GitHub Release](https://img.shields.io/github/v/release/joselyky/Wingetix?color=6ee7b7&label=Release&style=for-the-badge)](https://github.com/joselyky/Wingetix/releases/latest)
   [![GitHub Downloads](https://img.shields.io/github/downloads/joselyky/Wingetix/total?color=38bdf8&label=Downloads&style=for-the-badge&logo=github)](https://github.com/joselyky/Wingetix/releases)
   [![GitHub Stars](https://img.shields.io/github/stars/joselyky/Wingetix?style=for-the-badge&color=fbbf24&logo=github)](https://github.com/joselyky/Wingetix/stargazers)
+  [![AlternativeTo](https://img.shields.io/badge/AlternativeTo-Vote%20for%20Wingetix-0072C6?style=for-the-badge&logo=alternativeto&logoColor=white)](https://alternativeto.net/software/wingetix/)
   [![Website](https://img.shields.io/badge/Website-wingetix.com-10b981?style=for-the-badge&logo=googlechrome&logoColor=white)](https://wingetix.com)
   [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4?style=for-the-badge&logo=windows)](https://github.com/joselyky/Wingetix)
   [![License](https://img.shields.io/badge/License-GPLv3-34d399?style=for-the-badge)](LICENSE)
