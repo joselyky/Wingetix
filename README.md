@@ -23,6 +23,7 @@
   <p align="center">
     <a href="https://wingetix.com"><strong>Official Website »</strong></a> •
     <a href="#-download--installation"><strong>Download App »</strong></a> •
+    <a href="#-interface-showcase--visual-tour">Screenshots</a> •
     <a href="#-key-features">Key Features</a> •
     <a href="#-why-wingetix-comparison">Comparison</a> •
     <a href="#-security--guaranteed-privacy">Security & Trust</a> •
@@ -32,7 +33,9 @@
   <br />
 
   <p align="center">
+    <a href="screenshot-v1.1.1-hd.png" title="Click to view full-resolution preview">
     <img src="screenshot-v1.1.1-hd.png" alt="Wingetix Interface Preview" width="940" style="max-width: 100%; border-radius: 12px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);" />
+  </a>
   </p>
 
 </div>
@@ -63,6 +66,54 @@ Microsoft WinGet is powerful, but running PowerShell, remembering command flags,
 5. **Storage & Cache Cleaner:** Reclaims wasted disk space by sweeping WinGet installer caches, crash dumps, and setup residue.
 6. **Package Pinning:** Locks specific applications to their current version to prevent unwanted upgrades.
 7. **Built-in Auto-Updater:** Checks for updates securely via GitHub Releases with 1-click upgrade and live download telemetry.
+
+
+---
+
+## 🖼️ Interface Showcase & Visual Tour
+
+Click on any screenshot to inspect the full-resolution uncompressed interface.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%" align="center">
+        <b>🔄 Updates & WinGet Hub</b><br/>
+        <sub>1-Click batch scans, category filters (Apps, Games, Dev), and pending upgrade queues</sub><br/><br/>
+        <a href="docs/screenshots/01-updates.png"><img src="docs/screenshots/01-updates.png" alt="Updates Dashboard" width="100%" style="border-radius: 8px;" /></a>
+      </td>
+      <td width="50%" align="center">
+        <b>🗑️ Deep Uninstaller & Platform Shield</b><br/>
+        <sub>Residual registry scrubbing with automatic Steam, Epic, and EA game library protection</sub><br/><br/>
+        <a href="docs/screenshots/02-uninstaller.png"><img src="docs/screenshots/02-uninstaller.png" alt="Uninstaller and Platform Shield" width="100%" style="border-radius: 8px;" /></a>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <b>🎮 Graphics & Performance Center</b><br/>
+        <sub>NVIDIA, AMD & Intel GPU telemetry, real-time VRAM/thermals, and official driver updates</sub><br/><br/>
+        <a href="docs/screenshots/03-graphics.png"><img src="docs/screenshots/03-graphics.png" alt="GPU & Graphics Center" width="100%" style="border-radius: 8px;" /></a>
+      </td>
+      <td width="50%" align="center">
+        <b>🧹 Storage & WinGet Cache Cleaner</b><br/>
+        <sub>Reclaim wasted disk gigabytes by purging WinGet installer caches, crash dumps, and temp files</sub><br/><br/>
+        <a href="docs/screenshots/05-storage-cleaner.png"><img src="docs/screenshots/05-storage-cleaner.png" alt="Storage and Cache Cleaner" width="100%" style="border-radius: 8px;" /></a>
+      </td>
+    </tr>
+    <tr>
+      <td width="50%" align="center">
+        <b>💾 Windows System Restore Points</b><br/>
+        <sub>Instant pre-update OS snapshots, restore point manager, and direct recovery launch</sub><br/><br/>
+        <a href="docs/screenshots/04-restore-points.png"><img src="docs/screenshots/04-restore-points.png" alt="System Restore Points" width="100%" style="border-radius: 8px;" /></a>
+      </td>
+      <td width="50%" align="center">
+        <b>🌐 Bilingual UI & Quick Settings</b><br/>
+        <sub>Seamless 1-click toggle between English and Spanish, update checker, and repository shortcuts</sub><br/><br/>
+        <a href="docs/screenshots/06-quick-menu.png"><img src="docs/screenshots/06-quick-menu.png" alt="Language & Quick Menu" width="60%" style="border-radius: 8px;" /></a>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 
