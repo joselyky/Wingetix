@@ -4,7 +4,33 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
 
 ---
 
-## 🚨 1. PRIORIDAD CRÍTICA: Compatibilidad Total con Windows 10 y Resolución de WinGet
+## 🎨 1. NUEVA EXPERIENCIA: Instalador Visual Glassmorphism (Estilo Web / Discord / Spotify)
+> **Objetivo:** Sustituir las típicas ventanas grises de instalación estilo "Windows 98/XP" por un instalador moderno, sin marcos clásicos (`frameless`), con esquinas redondeadas y con el diseño exacto de la página web (`wingetix.com`).
+
+### Flujo de Pantallas de la Instalación:
+1. **🌌 Pantalla 1: Bienvenida Cósmica (Hero Splash):**
+   - **Fondo:** El degradado cósmico profundo de la web con el manto de estrellas (`.stars-layer`).
+   - **Centro:** El logo atómico grande de Wingetix flotando en el medio con su resplandor aura en verde esmeralda y cian brillante.
+   - **Texto:** *"Wingetix — The Ultimate Visual Control Panel for Windows"*.
+   - **Botón:** Botón personalizado brillante con efecto cristal: **`[ Comenzar Instalación → ]`**.
+2. **⚙️ Pantalla 2: Opciones con Tarjetas Glassmorphism:**
+   - Transición suave donde el logo sube a la cabecera y aparece una tarjeta oscura traslúcida.
+   - Selector de idioma (`🇪🇸 Español` / `🇬🇧 English`).
+   - Interruptores modernos para: *Crear acceso directo en el escritorio* y *Verificar/activar motor oficial WinGet*.
+   - Botón `[ Atrás ]` y botón brillante `[ Instalar Ahora ]`.
+3. **⚡ Pantalla 3: Instalación con Barra de Progreso Neón:**
+   - Barra de progreso fina con gradiente cian (`#6ee7b7` a `#38bdf8`) con resplandor animado.
+   - Mensajes dinámicos en tiempo real:
+     * *"Desempaquetando archivos del sistema... (35%)"*
+     * *"Verificando y registrando motor WinGet... (70%)"*
+     * *"Creando accesos directos... (100%)"*
+4. **🎉 Pantalla 4: Finalización:**
+   - Checkmark verde brillante: *"¡Instalación completada con éxito!"*.
+   - Botón destacado gigante: **`[ 🚀 Abrir Wingetix ]`**.
+
+---
+
+## 🚨 2. PRIORIDAD CRÍTICA: Compatibilidad Total con Windows 10 y Resolución de WinGet
 > **Problema reportado en Reddit:** *"La app no funciona en Windows 10"*.
 
 ### Causa técnica identificada del fallo en Windows 10:
@@ -18,18 +44,17 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
 
 ### Solución técnica a implementar en v1.2.0 para Windows 10:
 1. **Resolución de la ruta binaria real en `buildEnv()` (`main.js`):**
-   - No depender solo del alias simbólico de `WindowsApps`.
    - Localizar la ruta física del ejecutable real en:
      `C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe`.
    - Inyectar esta carpeta directamente en la variable `PATH` del entorno en `buildEnv()`.
 2. **Uso consistente de `shell: true` o envoltura en `cmd.exe /c`:**
-   - Unificar todas las llamadas de `spawn('winget')` para que ninguna use `shell: false`, permitiendo a `cmd.exe` resolver el comando sin restricciones en Windows 10.
+   - Unificar todas las llamadas de `spawn('winget')` para que ninguna use `shell: false`.
 3. **Asistente de Autodetección y Activación de WinGet:**
-   - Si Windows 10 no tiene WinGet instalado, mostrar la pantalla de activación en 1 clic que descarga e instala `Microsoft.DesktopAppInstaller` y sus dependencias (`VCLibs` y `UI.Xaml`).
+   - Si Windows 10 no tiene WinGet instalado, ofrecer la activación en 1 clic descargando `Microsoft.DesktopAppInstaller` y sus dependencias (`VCLibs` y `UI.Xaml`).
 
 ---
 
-## 🌟 2. Feature Estrella: Creador de Packs y Perfiles de Software (Bundle Installer)
+## 🌟 3. Feature Estrella: Creador de Packs y Perfiles de Software (Bundle Installer)
 > **Inspiración:** Sugerencia de la comunidad (`u/joshuas_79` en Reddit) y utilidad estilo *Ninite / winget export*.
 
 ### Especificaciones funcionales:
@@ -44,7 +69,7 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
 
 ---
 
-## 🎮 3. Detección Multi-GPU (Gráfica Integrada vs Gráfica Dedicada)
+## 🎮 4. Detección Multi-GPU (Gráfica Integrada vs Gráfica Dedicada)
 > **Problema reportado:** En ordenadores con procesador con gráficos integrados (Intel UHD/Iris Xe o AMD Radeon Graphics) y tarjeta gráfica dedicada (NVIDIA RTX/GTX, AMD RX o Intel Arc), la app a veces muestra la integrada o no permite ver ambas.
 
 ### Solución a implementar en v1.2:
@@ -55,42 +80,42 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
 
 ---
 
-## 🌐 4. Mejoras Aprobadas de la Comunidad de Reddit
+## 🌐 5. Mejoras Aprobadas de la Comunidad de Reddit
 
-### 4.1 Auditoría y Pulido Integral del Inglés (`i18n.js`)
+### 5.1 Auditoría y Pulido Integral del Inglés (`i18n.js`)
 * **Reporte:** `u/mondychan` (*"english translation in the app is funky dory, needs a polish"*).
 * **Acción:** Reescribir y pulir todas las cadenas en inglés en `i18n.js` y plantillas HTML con terminología técnica estándar (*clean uninstallation*, *residual registry purge*, *version pinning*, *restore point creation*).
 
-### 4.2 Posicionamiento Oficial: ¿Por qué WinGet y no Chocolatey/Scoop?
+### 5.2 Posicionamiento Oficial: ¿Por qué WinGet y no Chocolatey/Scoop?
 * **Reporte:** `u/TomHale` preguntó por soporte para `choco` y `scoop`.
 * **Decisión:** Mantener el enfoque 100% nativo y seguro sobre Microsoft WinGet, y añadir una sección clara en la FAQ de la web y de la app explicando esta ventaja.
 
-### 4.3 Demostración de Solidez Técnica y Transparencia
+### 5.3 Demostración de Solidez Técnica y Transparencia
 * **Reporte:** `u/smoke-bubble` (*escepticismo ante proyectos nuevos*).
 * **Acción:** Añadir demostraciones visuales (GIFs/clips) en `README.md` mostrando la app funcionando en vivo e insignia de **VirusTotal 0/70 limpio**.
 
-### 4.4 Visibilidad Inmediata: 100% Gratis, Sin Anuncios y Sin Telemetría
+### 5.4 Visibilidad Inmediata: 100% Gratis, Sin Anuncios y Sin Telemetría
 * **Reporte:** `u/gvcggff` (*pereza para leer GitHub o la web*).
 * **Acción:** Poner en la primera línea de cada post, en la cabecera del README y en la ventana de Acerca de:
   > **100% Free Forever & Open Source (GPLv3) — Zero Ads, Zero Telemetry, No Premium Tier.**
 
-### 4.5 Guía de Colaboración Comunitaria (`CONTRIBUTING.md`)
+### 5.5 Guía de Colaboración Comunitaria (`CONTRIBUTING.md`)
 * **Estado:** Ya redactada, integrada y publicada en GitHub.
 
 ---
 
-## ⚡ 5. Modo Portable Puro (Zero Footprint USB)
+## ⚡ 6. Modo Portable Puro (Zero Footprint USB)
 - Configuración en `.\data\settings.json` en vez de `%APPDATA%\Wingetix` al ejecutarse desde pendrive USB.
 
 ---
 
-## 🗑️ 6. Mejoras en el Desinstalador Profundo (Deep Uninstaller v2)
+## 🗑️ 7. Mejoras en el Desinstalador Profundo (Deep Uninstaller v2)
 - Previsualización desplegable de las carpetas y claves del registro exactas que se van a purgar antes de borrarlas.
 - Lista blanca configurable por el usuario en el *Platform Shield*.
 
 ---
 
-## 🎨 7. Ajustes de Rendimiento y UX
+## 🎨 8. Ajustes de Rendimiento y UX
 - Buscador instantáneo con *debounce* (150ms).
 - Barra de progreso de descargas en la barra de tareas de Windows (`win.setProgressBar`).
 - Notificaciones nativas del sistema operativo.
