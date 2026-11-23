@@ -108,6 +108,7 @@ async function init() {
   bindGpuControls();
   bindRestoreControls();
   bindCleanerControls();
+  bindBundlesControls();
   bindQueueEvents();
   bindKeyboardShortcuts();
   initAppUpdater();
@@ -192,6 +193,60 @@ function bindLanguageControls() {
     });
   }
 
+  // About Wingetix & FAQ modal
+  const menuOpenAbout = document.getElementById('menu-open-about');
+  const modalAboutWingetix = document.getElementById('modal-about-wingetix');
+  const btnCloseAboutModal = document.getElementById('btn-close-about-modal');
+  const btnAboutCloseFooter = document.getElementById('btn-about-close-footer');
+  const btnAboutGithub = document.getElementById('btn-about-github');
+  const btnAboutWebsite = document.getElementById('btn-about-website');
+
+  if (menuOpenAbout && modalAboutWingetix) {
+    menuOpenAbout.addEventListener('click', () => {
+      closeDropdown();
+      modalAboutWingetix.classList.remove('hidden');
+    });
+  }
+  const closeAboutModal = () => {
+    if (modalAboutWingetix) modalAboutWingetix.classList.add('hidden');
+  };
+  if (btnCloseAboutModal) btnCloseAboutModal.addEventListener('click', closeAboutModal);
+  if (btnAboutCloseFooter) btnAboutCloseFooter.addEventListener('click', closeAboutModal);
+  if (modalAboutWingetix) {
+    modalAboutWingetix.addEventListener('click', (e) => {
+      if (e.target === modalAboutWingetix) closeAboutModal();
+    });
+  }
+  if (btnAboutGithub) {
+    btnAboutGithub.addEventListener('click', () => {
+      if (window.electronAPI && window.electronAPI.openExternalUrl) {
+        window.electronAPI.openExternalUrl('https://github.com/joselyky/Wingetix');
+      } else {
+        window.open('https://github.com/joselyky/Wingetix', '_blank');
+      }
+    });
+  }
+  if (btnAboutWebsite) {
+    btnAboutWebsite.addEventListener('click', () => {
+      if (window.electronAPI && window.electronAPI.openExternalUrl) {
+        window.electronAPI.openExternalUrl('https://wingetix.com');
+      } else {
+        window.open('https://wingetix.com', '_blank');
+      }
+    });
+  }
+
+  // Open Portable / AppData Data Folder (.\data)
+  const menuOpenDataFolder = document.getElementById('menu-open-data-folder');
+  if (menuOpenDataFolder) {
+    menuOpenDataFolder.addEventListener('click', () => {
+      closeDropdown();
+      if (window.electronAPI && typeof window.electronAPI.openDataFolder === 'function') {
+        window.electronAPI.openDataFolder();
+      }
+    });
+  }
+
   window.addEventListener('languageChanged', (e) => {
     onLanguageChanged(e.detail.lang);
   });
@@ -199,6 +254,23 @@ function bindLanguageControls() {
   // Apply default/active language immediately on boot (English 'en' by default)
   if (window.i18n) {
     window.i18n.setLanguage(window.i18n.currentLang || 'en');
+  }
+
+  // Load persistent settings from .\data\settings.json (Zero-Footprint USB Portable Mode)
+  if (window.electronAPI && typeof window.electronAPI.getSettings === 'function') {
+    window.electronAPI.getSettings().then((res) => {
+      const cfg = res && res.settings;
+      if (!cfg) return;
+      if (cfg.userSelectedLanguage && (cfg.language === 'en' || cfg.language === 'es')) {
+        try {
+          localStorage.setItem('wingetix_lang', cfg.language);
+          localStorage.setItem('wingetix_user_selected_lang', 'true');
+        } catch (_) {}
+        if (window.i18n && window.i18n.currentLang !== cfg.language) {
+          window.i18n.setLanguage(cfg.language, false);
+        }
+      }
+    }).catch(() => {});
   }
 
   // Check if language was chosen during installer execution and apply if user hasn't explicitly customized
@@ -250,6 +322,11 @@ function onLanguageChanged(lang) {
   // 7. Refresh GPU dashboard if loaded
   if (currentGpuData && typeof renderGpuInfo === 'function') {
     renderGpuInfo(currentGpuData);
+  }
+
+  // 8. Refresh System Mode badge (Portable vs Installed)
+  if (window._lastSystemInfo && typeof updateSystemModeBadge === 'function') {
+    updateSystemModeBadge(window._lastSystemInfo);
   }
 }
 
@@ -376,6 +453,18 @@ function bindKeyboardShortcuts() {
       if (updateModal && !updateModal.classList.contains('hidden')) {
         e.preventDefault();
         closeAppUpdateModal();
+        return;
+      }
+      const aboutModal = document.getElementById('modal-about-wingetix');
+      if (aboutModal && !aboutModal.classList.contains('hidden')) {
+        e.preventDefault();
+        aboutModal.classList.add('hidden');
+        return;
+      }
+      const shieldModal = document.getElementById('modal-platform-shield');
+      if (shieldModal && !shieldModal.classList.contains('hidden')) {
+        e.preventDefault();
+        shieldModal.classList.add('hidden');
         return;
       }
       const activeInput = document.activeElement;
@@ -1015,14 +1104,28 @@ function updateInstalledTableSortIndicators() {
   syncCustomDropdown('dropdown-sort-installed', currentSortInstalled);
 }
 
+// ─── Instant Search Debounce Helper (150ms) ──────────────────────────────────
+function debounce(fn, delay = 150) {
+  let timer = null;
+  return function (...args) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn.apply(this, args);
+    }, delay);
+  };
+}
+
 // ─── Search & Sort Filter Listeners ──────────────────────────────────────────
 function bindSearch() {
   initCustomDropdowns();
 
+  const debouncedPackageFilter = debounce(() => {
+    applyPackageFilters();
+  }, 150);
+
   if (searchInput) {
-    searchInput.addEventListener('input', () => {
-      applyPackageFilters();
-    });
+    searchInput.addEventListener('input', debouncedPackageFilter);
   }
 
   const sortSelect = document.getElementById('sort-packages-select');
@@ -1048,11 +1151,13 @@ function bindSearch() {
     });
   });
 
+  const debouncedInstalledFilter = debounce(() => {
+    applyInstalledFilters();
+  }, 150);
+
   const searchInstalledInput = document.getElementById('search-installed-input');
   if (searchInstalledInput) {
-    searchInstalledInput.addEventListener('input', () => {
-      applyInstalledFilters();
-    });
+    searchInstalledInput.addEventListener('input', debouncedInstalledFilter);
   }
 
   const sortInstalledSelect = document.getElementById('sort-installed-select');
@@ -1080,9 +1185,30 @@ function bindSearch() {
 }
 
 // ─── System Info ───────────────────────────────────────────────────────────────
+function updateSystemModeBadge(info) {
+  const sysMode = document.getElementById('sys-mode');
+  if (!sysMode || !info) return;
+  const isPortable = !!info.isPortable;
+  const t = (window.i18n && window.i18n.t) ? window.i18n.t : (k => k);
+  sysMode.textContent = isPortable ? t('sys_mode_portable') : t('sys_mode_installed');
+  sysMode.classList.toggle('is-portable', isPortable);
+  sysMode.classList.toggle('is-installed', !isPortable);
+  const baseTooltip = isPortable ? t('sys_mode_portable_tooltip') : t('sys_mode_installed_tooltip');
+  sysMode.title = info.settingsPath ? `${baseTooltip}\n${info.settingsPath}` : baseTooltip;
+  if (!sysMode.dataset.boundClick) {
+    sysMode.dataset.boundClick = 'true';
+    sysMode.addEventListener('click', () => {
+      if (window.electronAPI && typeof window.electronAPI.openDataFolder === 'function') {
+        window.electronAPI.openDataFolder();
+      }
+    });
+  }
+}
+
 async function loadSystemInfo() {
   try {
     const info = await window.electronAPI.getSystemInfo();
+    window._lastSystemInfo = info;
     sysHost.textContent = info.hostname ?? '—';
     if (info.osName) {
       sysOs.textContent = info.osName;
@@ -1096,6 +1222,7 @@ async function loadSystemInfo() {
     if (sysRam) {
       sysRam.textContent = formatBytes(info.freeMemory) + ' libre';
     }
+    updateSystemModeBadge(info);
   } catch (e) {
     sysHost.textContent = '—';
   }
@@ -1119,6 +1246,11 @@ async function handleScan(manualTrigger = false) {
     const result = await window.electronAPI.listUpgrades();
 
     if (!result.success && !result.packages) {
+      if (result.wingetMissing || result.error?.toLowerCase().includes('winget') || result.error?.toLowerCase().includes('not recognized') || result.error?.toLowerCase().includes('no se reconoce')) {
+        showWinGetActivationPrompt();
+        showToast(window.i18n ? window.i18n.t('winget_missing_title') : 'WinGet Engine Required', 'warning');
+        return;
+      }
       throw new Error(result.error ?? 'Error desconocido al ejecutar winget.');
     }
 
@@ -1142,11 +1274,11 @@ async function handleScan(manualTrigger = false) {
     if (actionable.length === 0 && pinnedPackages.length === 0) {
       showState('empty');
       setStatusBar('Sistema al día', 'No se encontraron actualizaciones pendientes', 100, 'idle');
-      showToast('Tu sistema está al día.', 'success');
+      showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_system_uptodate') : 'Your system is up to date.', 'success');
     } else {
       showState('table');
       setStatusBar('Escaneo finalizado', `${actionable.length} actualización(es) disponible(s)`, 100, 'idle');
-      showToast(`${actionable.length} actualizaciones encontradas.`, 'info');
+      showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_updates_found', { count: actionable.length }) : `${actionable.length} update(s) found.`, 'info');
     }
 
     updateStats();
@@ -1154,7 +1286,11 @@ async function handleScan(manualTrigger = false) {
   } catch (err) {
     showState('idle');
     setStatusBar('Error al escanear', err.message, 0, 'error');
-    showToast('Error al escanear. ¿Está winget instalado?', 'error');
+    if (err.message?.toLowerCase().includes('winget') || err.message?.toLowerCase().includes('not recognized') || err.message?.toLowerCase().includes('no se reconoce')) {
+      showWinGetActivationPrompt();
+    } else {
+      showToast('Error al escanear: ' + err.message, 'error');
+    }
   } finally {
     setUIBusy(false);
   }
@@ -1167,9 +1303,9 @@ function handleUpdateSelected() {
   const selectedPackages = getSelectedPackages().filter(pkg => !isSystemPackage(pkg) && !isPinnedPackage(pkg));
   if (selectedPackages.length === 0) {
     if (currentTab === 'pinned') {
-      showToast('Las aplicaciones seleccionadas están fijadas y protegidas contra actualizaciones.', 'info');
+      showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_pinned_protected') : 'Selected applications are pinned and protected against updates.', 'info');
     } else {
-      showToast('Selecciona al menos una aplicación.', 'error');
+      showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_select_at_least_one') : 'Select at least one application.', 'error');
     }
     return;
   }
@@ -1209,15 +1345,15 @@ function handleUpdateSelected() {
       if (data.cancelled) {
         hideProgress('Actualización cancelada', 'La operación fue cancelada por el usuario.');
         setStatusBar('Actualización cancelada', 'La operación fue cancelada por el usuario.', 100, 'error');
-        showToast('Actualización cancelada por el usuario.', 'warning');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_operation_cancelled') : 'Update cancelled by user.', 'warning');
       } else if (data.success) {
         hideProgress('Actualizaciones completadas', 'Todos los paquetes seleccionados fueron actualizados.');
-        showToast('Actualizaciones completadas.', 'success');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_updates_completed') : 'Updates completed successfully.', 'success');
         selectedPackageIds.clear();
         setTimeout(handleScan, 1200);
       } else {
         setStatusBar('Actualización finalizada con advertencias', 'Algunas actualizaciones fallaron o fueron canceladas.', 100, 'error');
-        showToast('Algunas actualizaciones fallaron.', 'error');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_updates_failed') : 'Some updates failed.', 'error');
       }
 
       // Refresh UI stats
@@ -1235,7 +1371,7 @@ function handleUpdateAll() {
   if (isUpdating) return;
 
   if (currentTab === 'pinned') {
-    showToast('Las aplicaciones en esta pestaña están fijadas y protegidas contra actualizaciones.', 'info');
+    showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_pinned_protected_tab') : 'Applications in this tab are pinned and protected against updates.', 'info');
     return;
   }
 
@@ -1243,7 +1379,7 @@ function handleUpdateAll() {
   const activePackages = allPackages.filter(pkg => getPackageCategory(pkg) === currentTab && !isSystemPackage(pkg) && !isPinnedPackage(pkg));
 
   if (activePackages.length === 0) {
-    showToast('No hay aplicaciones para actualizar en esta pestaña.', 'error');
+    showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_no_apps_tab') : 'No applications to update in this tab.', 'error');
     return;
   }
 
@@ -1282,15 +1418,15 @@ function handleUpdateAll() {
       if (data.cancelled) {
         hideProgress('Actualización cancelada', 'La operación fue cancelada por el usuario.');
         setStatusBar('Actualización cancelada', 'La operación fue cancelada por el usuario.', 100, 'error');
-        showToast('Actualización cancelada por el usuario.', 'warning');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_operation_cancelled') : 'Update cancelled by user.', 'warning');
       } else if (data.success) {
         hideProgress('Actualizaciones completadas', 'Todos los paquetes de la pestaña fueron actualizados.');
-        showToast('Actualizaciones completadas.', 'success');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_updates_completed') : 'Updates completed successfully.', 'success');
         activePackages.forEach(pkg => selectedPackageIds.delete(pkg.id));
         setTimeout(handleScan, 1200);
       } else {
         setStatusBar('Actualización finalizada con advertencias', 'Algunas actualizaciones fallaron o fueron canceladas.', 100, 'error');
-        showToast('Algunas actualizaciones fallaron.', 'error');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_updates_failed') : 'Some updates failed.', 'error');
       }
 
       // Refresh UI stats
@@ -1348,13 +1484,13 @@ function handleUpdateEverything() {
 
       if (data.cancelled) {
         setStatusBar('Actualización cancelada', 'La operación fue cancelada por el usuario.', 100, 'error');
-        showToast('Actualización cancelada por el usuario.', 'warning');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_operation_cancelled') : 'Update cancelled by user.', 'warning');
       } else if (data.success) {
-        showToast('Todas las aplicaciones actualizadas.', 'success');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_all_updated') : 'All applications updated.', 'success');
         selectedPackageIds.clear();
         setTimeout(handleScan, 1200);
       } else {
-        showToast('Algunas actualizaciones fallaron. Revisa la consola.', 'error');
+        showToast((window.i18n && window.i18n.t) ? window.i18n.t('toast_updates_failed') : 'Some updates failed. Check console.', 'error');
       }
 
       // Refresh UI stats
@@ -2233,6 +2369,13 @@ function getTranslatedStatusText(text) {
     'Puntos eliminados': { en: 'Points deleted', es: 'Puntos eliminados' },
     'Todas las instantáneas han sido eliminadas': { en: 'All snapshots have been deleted', es: 'Todas las instantáneas han sido eliminadas' },
 
+    // Bundles & Software Packs
+    'Installing Software Pack...': { en: 'Installing Software Pack...', es: 'Instalando paquete de software...' },
+    'Pack installation completed': { en: 'Pack installation completed', es: 'Instalación de paquete completada' },
+    'Installation cancelled': { en: 'Installation cancelled', es: 'Instalación cancelada' },
+    'Installation finished with errors': { en: 'Installation finished with errors', es: 'Instalación finalizada con errores' },
+    'Cancelling installation...': { en: 'Cancelling installation...', es: 'Cancelando instalación...' },
+
     // Default / idle
     'Listo': { en: 'Ready', es: 'Listo' },
     'Sistema preparado': { en: 'System ready', es: 'Sistema preparado' },
@@ -2328,14 +2471,27 @@ function setStatusBar(title, subtitle = '', pct = null, status = 'idle') {
         progressBar.style.transition = 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
         progressBar.style.width = `${numPct}%`;
       }
+      if (window.electronAPI && typeof window.electronAPI.setTaskbarProgress === 'function') {
+        if (status === 'idle' && numPct >= 100) {
+          window.electronAPI.setTaskbarProgress(-1);
+        } else {
+          window.electronAPI.setTaskbarProgress(numPct / 100, status === 'error' ? 'error' : 'normal');
+        }
+      }
     } else if (status === 'busy') {
       progressBar.classList.add('indeterminate');
       progressBar.style.transition = 'none';
       progressBar.style.width = '';
+      if (window.electronAPI && typeof window.electronAPI.setTaskbarProgress === 'function') {
+        window.electronAPI.setTaskbarProgress(2, 'indeterminate');
+      }
     } else {
       progressBar.classList.remove('indeterminate');
       progressBar.style.transition = 'width 0.3s ease';
       progressBar.style.width = '0%';
+      if (window.electronAPI && typeof window.electronAPI.setTaskbarProgress === 'function') {
+        window.electronAPI.setTaskbarProgress(-1);
+      }
     }
   }
 }
@@ -2344,6 +2500,9 @@ function resetStatusBar(message, sub) {
   const readyText = window.i18n ? window.i18n.t('status_ready') : 'Ready';
   const prepText = window.i18n ? window.i18n.t('status_prepared') : 'System prepared';
   setStatusBar(message || readyText, sub || prepText, null, 'idle');
+  if (window.electronAPI && typeof window.electronAPI.setTaskbarProgress === 'function') {
+    window.electronAPI.setTaskbarProgress(-1);
+  }
   if (progressBar) {
     progressBar.classList.remove('indeterminate');
     progressBar.style.transition = 'none';
@@ -2401,12 +2560,200 @@ function appendLog(type, text) {
 }
 
 // ─── Toast Notifications ───────────────────────────────────────────────────────
+function getTranslatedToastText(text) {
+  if (!text || typeof text !== 'string') return text;
+  if (!window.i18n || !window.i18n.t) return text;
+
+  const directVal = window.i18n.t(text);
+  if (directVal && directVal !== text) return directVal;
+
+  const currentLang = window.i18n.currentLang || 'en';
+
+  const toastDict = {
+    // Updates
+    'Tu sistema está al día.': { en: 'Your system is up to date.', es: 'Tu sistema está al día.' },
+    'Your system is up to date.': { en: 'Your system is up to date.', es: 'Tu sistema está al día.' },
+    'Actualizaciones completadas.': { en: 'Updates completed successfully.', es: 'Actualizaciones completadas.' },
+    'Updates completed successfully.': { en: 'Updates completed successfully.', es: 'Actualizaciones completadas.' },
+    'Algunas actualizaciones fallaron.': { en: 'Some updates failed.', es: 'Algunas actualizaciones fallaron.' },
+    'Some updates failed.': { en: 'Some updates failed.', es: 'Algunas actualizaciones fallaron.' },
+    'Algunas actualizaciones fallaron. Revisa la consola.': { en: 'Some updates failed. Check console.', es: 'Algunas actualizaciones fallaron. Revisa la consola.' },
+    'Some updates failed. Check console.': { en: 'Some updates failed. Check console.', es: 'Algunas actualizaciones fallaron. Revisa la consola.' },
+    'Todas las aplicaciones actualizadas.': { en: 'All applications updated.', es: 'Todas las aplicaciones actualizadas.' },
+    'All applications updated.': { en: 'All applications updated.', es: 'Todas las aplicaciones actualizadas.' },
+    'Actualización cancelada por el usuario.': { en: 'Update cancelled by user.', es: 'Actualización cancelada por el usuario.' },
+    'Update cancelled by user.': { en: 'Update cancelled by user.', es: 'Actualización cancelada por el usuario.' },
+    'Desinstalación cancelada por el usuario.': { en: 'Uninstallation cancelled by user.', es: 'Desinstalación cancelada por el usuario.' },
+    'Desinstalación cancelada.': { en: 'Uninstallation cancelled.', es: 'Desinstalación cancelada.' },
+    'Uninstallation cancelled by user.': { en: 'Uninstallation cancelled by user.', es: 'Desinstalación cancelada por el usuario.' },
+    'Uninstallation cancelled.': { en: 'Uninstallation cancelled.', es: 'Desinstalación cancelada.' },
+    'Selecciona al menos una aplicación.': { en: 'Select at least one application.', es: 'Selecciona al menos una aplicación.' },
+    'Select at least one application.': { en: 'Select at least one application.', es: 'Selecciona al menos una aplicación.' },
+    'Selecciona al menos una aplicación para desinstalar.': { en: 'Select at least one application to uninstall.', es: 'Selecciona al menos una aplicación para desinstalar.' },
+    'Select at least one application to uninstall.': { en: 'Select at least one application to uninstall.', es: 'Selecciona al menos una aplicación para desinstalar.' },
+    'Las aplicaciones seleccionadas están fijadas y protegidas contra actualizaciones.': { en: 'Selected applications are pinned and protected against updates.', es: 'Las aplicaciones seleccionadas están fijadas y protegidas contra actualizaciones.' },
+    'Las aplicaciones en esta pestaña están fijadas y protegidas contra actualizaciones.': { en: 'Applications in this tab are pinned and protected against updates.', es: 'Las aplicaciones en esta pestaña están fijadas y protegidas contra actualizaciones.' },
+    'No hay aplicaciones para actualizar en esta pestaña.': { en: 'No applications to update in this tab.', es: 'No hay aplicaciones para actualizar en esta pestaña.' },
+    'Lista exportada con éxito.': { en: 'List exported successfully.', es: 'Lista exportada con éxito.' },
+    'List exported successfully.': { en: 'List exported successfully.', es: 'Lista exportada con éxito.' },
+    'Importación e instalación completada.': { en: 'Import and installation completed.', es: 'Importación e instalación completada.' },
+    'Import and installation completed.': { en: 'Import and installation completed.', es: 'Importación e instalación completada.' },
+    'Error al listar aplicaciones.': { en: 'Error listing applications.', es: 'Error al listar aplicaciones.' },
+    'La desinstalación falló o fue cancelada.': { en: 'Uninstallation failed or was cancelled.', es: 'La desinstalación falló o fue cancelada.' },
+    'Uninstallation failed or was cancelled.': { en: 'Uninstallation failed or was cancelled.', es: 'La desinstalación falló o fue cancelada.' },
+    'Tu controlador gráfico está completamente al día.': { en: 'Your graphics driver is completely up to date.', es: 'Tu controlador gráfico está completamente al día.' },
+    'Your graphics driver is completely up to date.': { en: 'Your graphics driver is completely up to date.', es: 'Tu controlador gráfico está completamente al día.' },
+    'No se pudo verificar el estado en línea.': { en: 'Could not verify online status.', es: 'No se pudo verificar el estado en línea.' },
+    'Error al detectar la tarjeta gráfica.': { en: 'Error detecting graphics card.', es: 'Error al detectar la tarjeta gráfica.' },
+    'Comprobando actualizaciones en tu repositorio de GitHub...': { en: 'Checking for updates on GitHub repository...', es: 'Comprobando actualizaciones en tu repositorio de GitHub...' },
+    'No se encontró un archivo ejecutable válido en la versión para descargar.': { en: 'No valid executable file found in release.', es: 'No se encontró un archivo ejecutable válido en la versión para descargar.' },
+    'No se encontró el instalador descargado.': { en: 'Downloaded installer not found.', es: 'No se encontró el instalador descargado.' },
+    'Iniciando instalador oficial y cerrando Wingetix...': { en: 'Launching official installer and closing Wingetix...', es: 'Iniciando instalador oficial y cerrando Wingetix...' },
+    'Load API unavailable.': { en: 'Load API unavailable.', es: 'API de carga no disponible.' },
+    'Pack API unavailable.': { en: 'Pack API unavailable.', es: 'API de paquetes no disponible.' },
+    'Installation API unavailable.': { en: 'Installation API unavailable.', es: 'API de instalación no disponible.' },
+    'Batch installation cancelled.': { en: 'Batch installation cancelled.', es: 'Instalación por lotes cancelada.' },
+    'Installation cancelled.': { en: 'Installation cancelled.', es: 'Instalación cancelada.' },
+    'Software pack cleared.': { en: 'Software pack cleared.', es: 'Pack de software vaciado.' },
+    'Software pack created and saved successfully!': { en: 'Software pack created and saved successfully!', es: '¡Paquete de software creado y guardado con éxito!' },
+    'No applications selected. Please check at least one application to install.': { en: 'No applications selected. Please check at least one application to install.', es: 'No hay aplicaciones seleccionadas. Marca al menos una aplicación para instalar.' },
+    'No applications selected to install.': { en: 'No applications selected to install.', es: 'No hay aplicaciones seleccionadas para instalar.' },
+    'Your software pack is empty.': { en: 'Your software pack is empty.', es: 'Tu paquete de software está vacío.' },
+    'Your software pack is empty. Please add applications before continuing.': { en: 'Your software pack is empty. Please add applications before continuing.', es: 'Tu paquete de software está vacío. Añade aplicaciones antes de continuar.' },
+    'Your software pack is empty. Please add applications using "Add from Installed Apps".': { en: 'Your software pack is empty. Please add applications before continuing.', es: 'Tu paquete de software está vacío. Añade aplicaciones usando "Añadir de Apps Instaladas".' }
+  };
+
+  if (toastDict[text] && toastDict[text][currentLang]) {
+    return toastDict[text][currentLang];
+  }
+
+  // Dynamic regex replacements:
+  // Updates found
+  const mUpdatesEs = text.match(/^(\d+)\s+actualizaciones?\s+encontradas?\.?$/i);
+  if (mUpdatesEs) {
+    return currentLang === 'en' ? `${mUpdatesEs[1]} update(s) found.` : `${mUpdatesEs[1]} actualizaciones encontradas.`;
+  }
+  const mUpdatesEn = text.match(/^(\d+)\s+update\(s\)\s+found\.?$/i);
+  if (mUpdatesEn) {
+    return currentLang === 'es' ? `${mUpdatesEn[1]} actualizaciones encontradas.` : `${mUpdatesEn[1]} update(s) found.`;
+  }
+
+  // Batch uninstalled
+  const mUninstBatch = text.match(/^Se han desinstalado (\d+) aplicación\(es\) limpiamente\.?$/i);
+  if (mUninstBatch) {
+    return currentLang === 'en' ? `${mUninstBatch[1]} application(s) cleanly uninstalled.` : text;
+  }
+
+  // Single uninstalled
+  const mUninstSingle = text.match(/^Se desinstaló (.+) correctamente\.?$/i);
+  if (mUninstSingle) {
+    return currentLang === 'en' ? `"${mUninstSingle[1]}" was uninstalled successfully.` : text;
+  }
+
+  // Pin / unpin
+  const mPin = text.match(/^(?:📌\s*)?(.+) fijada\. Sus actualizaciones se han pausado\./i);
+  if (mPin) {
+    return currentLang === 'en' ? `${mPin[1]} pinned. Updates paused.` : text;
+  }
+  const mUnpin = text.match(/^(?:🔓\s*)?Se ha quitado el anclaje de (.+)\. Volverá a recibir actualizaciones\./i);
+  if (mUnpin) {
+    return currentLang === 'en' ? `Unpinned ${mUnpin[1]}. Updates resumed.` : text;
+  }
+  const mPinning = text.match(/^Fijando versión de (.+)\.\.\.$/i);
+  if (mPinning) {
+    return currentLang === 'en' ? `Pinning version of ${mPinning[1]}...` : text;
+  }
+  const mUnpinning = text.match(/^Quitando anclaje de (.+)\.\.\.$/i);
+  if (mUnpinning) {
+    return currentLang === 'en' ? `Unpinning ${mUnpinning[1]}...` : text;
+  }
+
+  // Pack dynamic toasts
+  const mPackLoaded = text.match(/^Software pack loaded with (\d+) apps?\.?$/i);
+  if (mPackLoaded) {
+    return currentLang === 'es' ? `Pack de software cargado con ${mPackLoaded[1]} aplicaciones.` : text;
+  }
+  const mPackAddedSingle = text.match(/^Added (.+) to the pack\.?$/i);
+  if (mPackAddedSingle) {
+    return currentLang === 'es' ? `Añadida ${mPackAddedSingle[1]} al pack.` : text;
+  }
+  const mPackAddedMulti = text.match(/^Added (\d+) applications to the pack\.?$/i);
+  if (mPackAddedMulti) {
+    return currentLang === 'es' ? `Se añadieron ${mPackAddedMulti[1]} aplicaciones al pack.` : text;
+  }
+  const mPackAlready = text.match(/^Package (.+) is already in the pack\.?$/i);
+  if (mPackAlready) {
+    return currentLang === 'es' ? `El paquete ${mPackAlready[1]} ya está en el pack.` : text;
+  }
+  const mPackStarting = text.match(/^Starting installation of (\d+) selected apps?\.\.\.$/i);
+  if (mPackStarting) {
+    return currentLang === 'es' ? `Iniciando instalación por lotes de ${mPackStarting[1]} aplicaciones...` : text;
+  }
+  const mPackErrors = text.match(/^Installation finished with errors:\s*(.+)$/i);
+  if (mPackErrors) {
+    return currentLang === 'es' ? `Instalación finalizada con errores: ${mPackErrors[1]}` : text;
+  }
+
+  // Generic errors
+  const mErrScan = text.match(/^Error al escanear:\s*(.+)$/i);
+  if (mErrScan) {
+    return currentLang === 'en' ? `Error scanning: ${mErrScan[1]}` : text;
+  }
+  const mErrExp = text.match(/^Error al exportar:\s*(.+)$/i);
+  if (mErrExp) {
+    return currentLang === 'en' ? `Error exporting: ${mErrExp[1]}` : text;
+  }
+  const mErrImp = text.match(/^Error al importar:\s*(.+)$/i);
+  if (mErrImp) {
+    return currentLang === 'en' ? `Error importing: ${mErrImp[1]}` : text;
+  }
+  const mErrUnexp = text.match(/^Error inesperado:\s*(.+)$/i);
+  if (mErrUnexp) {
+    return currentLang === 'en' ? `Unexpected error: ${mErrUnexp[1]}` : text;
+  }
+
+  return text;
+}
+
+function triggerNativeOsNotificationIfNeeded(displayMessage, type = 'info') {
+  if (!window.electronAPI || typeof window.electronAPI.sendNativeNotification !== 'function') return;
+  if (type !== 'success' && type !== 'error') return;
+
+  const lower = String(displayMessage || '').toLowerCase();
+  const isMajorOperationEvent =
+    lower.includes('completad') ||
+    lower.includes('completed') ||
+    lower.includes('desinstal') ||
+    lower.includes('uninstalled') ||
+    lower.includes('actualizad') ||
+    lower.includes('updated') ||
+    lower.includes('liberado') ||
+    lower.includes('reclaimed') ||
+    lower.includes('cleaned') ||
+    lower.includes('restauración creado') ||
+    lower.includes('restore point created') ||
+    lower.includes('instaladas') ||
+    lower.includes('installed') ||
+    !document.hasFocus();
+
+  if (isMajorOperationEvent) {
+    const lang = (window.i18n && window.i18n.currentLang) || 'en';
+    const title = type === 'error'
+      ? (lang === 'es' ? 'Wingetix — Aviso de Operación' : 'Wingetix — Operation Alert')
+      : (lang === 'es' ? 'Wingetix — Operación Completada' : 'Wingetix — Operation Completed');
+    window.electronAPI.sendNativeNotification(title, displayMessage, false);
+  }
+}
+
 function showToast(message, type = 'info') {
   if (toastTimer) clearTimeout(toastTimer);
 
-  toast.textContent = message;
+  const displayMessage = getTranslatedToastText(message);
+  toast.textContent = displayMessage;
   toast.className = `toast toast-${type}`;
   toast.classList.remove('hidden');
+
+  triggerNativeOsNotificationIfNeeded(displayMessage, type);
 
   toastTimer = setTimeout(() => {
     toast.classList.add('hidden');
@@ -2571,6 +2918,10 @@ function showConfirmationModal(message, onConfirm, countdownSeconds = 0, confirm
   const modal = document.getElementById('confirm-modal');
   const modalText = document.getElementById('confirm-modal-text');
   const btnConfirm = document.getElementById('btn-modal-confirm');
+  const residualsBox = document.getElementById('uninstall-residuals-preview-box');
+  if (residualsBox) {
+    residualsBox.classList.add('hidden');
+  }
   
   if (modalCountdownTimer) {
     clearInterval(modalCountdownTimer);
@@ -2619,6 +2970,7 @@ function showConfirmationModal(message, onConfirm, countdownSeconds = 0, confirm
 
 let gpuDataLoaded = false;
 let currentGpuData = null;
+let currentSelectedGpuIndex = -1;
 
 // ─── Navigation Bindings ───────────────────────────────────────────────────────
 function bindNavigation() {
@@ -2627,18 +2979,21 @@ function bindNavigation() {
   const navGpu = document.getElementById('nav-gpu');
   const navRestore = document.getElementById('nav-restore');
   const navCleaner = document.getElementById('nav-cleaner');
+  const navBundles = document.getElementById('nav-bundles');
 
   const sidebarUpdatesControls = document.getElementById('sidebar-updates-controls');
   const sidebarUninstallerControls = document.getElementById('sidebar-uninstaller-controls');
   const sidebarGpuControls = document.getElementById('sidebar-gpu-controls');
   const sidebarRestoreControls = document.getElementById('sidebar-restore-controls');
   const sidebarCleanerControls = document.getElementById('sidebar-cleaner-controls');
+  const sidebarBundlesControls = document.getElementById('sidebar-bundles-controls');
 
   const mainUpdatesView = document.getElementById('main-updates-view');
   const mainUninstallerView = document.getElementById('main-uninstaller-view');
   const mainGpuView = document.getElementById('main-gpu-view');
   const mainRestoreView = document.getElementById('main-restore-view');
   const mainCleanerView = document.getElementById('main-cleaner-view');
+  const mainBundlesView = document.getElementById('main-bundles-view');
 
   const switchView = (target) => {
     currentMainView = target;
@@ -2647,18 +3002,21 @@ function bindNavigation() {
     if (navGpu) navGpu.classList.toggle('active', target === 'gpu');
     if (navRestore) navRestore.classList.toggle('active', target === 'restore');
     if (navCleaner) navCleaner.classList.toggle('active', target === 'cleaner');
+    if (navBundles) navBundles.classList.toggle('active', target === 'bundles');
 
     if (sidebarUpdatesControls) sidebarUpdatesControls.classList.toggle('hidden', target !== 'updates');
     if (sidebarUninstallerControls) sidebarUninstallerControls.classList.toggle('hidden', target !== 'uninstaller');
     if (sidebarGpuControls) sidebarGpuControls.classList.toggle('hidden', target !== 'gpu');
     if (sidebarRestoreControls) sidebarRestoreControls.classList.toggle('hidden', target !== 'restore');
     if (sidebarCleanerControls) sidebarCleanerControls.classList.toggle('hidden', target !== 'cleaner');
+    if (sidebarBundlesControls) sidebarBundlesControls.classList.toggle('hidden', target !== 'bundles');
 
     if (mainUpdatesView) mainUpdatesView.classList.toggle('hidden', target !== 'updates');
     if (mainUninstallerView) mainUninstallerView.classList.toggle('hidden', target !== 'uninstaller');
     if (mainGpuView) mainGpuView.classList.toggle('hidden', target !== 'gpu');
     if (mainRestoreView) mainRestoreView.classList.toggle('hidden', target !== 'restore');
     if (mainCleanerView) mainCleanerView.classList.toggle('hidden', target !== 'cleaner');
+    if (mainBundlesView) mainBundlesView.classList.toggle('hidden', target !== 'bundles');
 
     if (target === 'uninstaller' && allInstalledApps.length === 0) {
       handleScanInstalled();
@@ -2672,6 +3030,14 @@ function bindNavigation() {
     if (target === 'cleaner' && !cleanerDataLoaded) {
       handleScanCleaner();
     }
+    if (target === 'bundles') {
+      if (!allInstalledApps || allInstalledApps.length === 0) {
+        handleScanInstalled().then(() => {
+          if (currentMainView === 'bundles') renderBundlesTable();
+        });
+      }
+      renderBundlesTable();
+    }
   };
 
   if (navUpdates) navUpdates.addEventListener('click', () => switchView('updates'));
@@ -2679,6 +3045,7 @@ function bindNavigation() {
   if (navGpu) navGpu.addEventListener('click', () => switchView('gpu'));
   if (navRestore) navRestore.addEventListener('click', () => switchView('restore'));
   if (navCleaner) navCleaner.addEventListener('click', () => switchView('cleaner'));
+  if (navBundles) navBundles.addEventListener('click', () => switchView('bundles'));
 }
 
 function bindUninstallerControls() {
@@ -2714,12 +3081,6 @@ function bindUninstallerControls() {
     chkAllInstHeader.addEventListener('change', () => setAllInstalledCheckboxes(chkAllInstHeader.checked));
   }
 
-  if (searchInstalledInput) {
-    searchInstalledInput.addEventListener('input', () => {
-      applyInstalledFilters();
-    });
-  }
-
   const chkRestorePoint = document.getElementById('chk-create-restore-point');
   if (chkRestorePoint) {
     chkRestorePoint.checked = localStorage.getItem('winget_create_restore_point') === 'true';
@@ -2727,6 +3088,256 @@ function bindUninstallerControls() {
       localStorage.setItem('winget_create_restore_point', chkRestorePoint.checked ? 'true' : 'false');
     });
   }
+
+  bindPlatformShieldControls();
+}
+
+// ─── Deep Uninstaller v2: Platform Shield Whitelist & Residual Preview ─────────
+let currentShieldWhitelist = [];
+
+function bindPlatformShieldControls() {
+  const btnOpenShield = document.getElementById('btn-open-platform-shield');
+  const modalShield = document.getElementById('modal-platform-shield');
+  const btnCloseShield = document.getElementById('btn-close-shield-modal');
+  const btnCloseShieldFooter = document.getElementById('btn-close-shield-footer');
+  const inputShield = document.getElementById('input-shield-whitelist');
+  const btnBrowseShield = document.getElementById('btn-shield-browse-folder');
+  const btnAddShield = document.getElementById('btn-shield-add-entry');
+  const btnToggleResiduals = document.getElementById('btn-toggle-residuals-preview');
+  const residualsDrawer = document.getElementById('residuals-preview-drawer');
+
+  if (btnToggleResiduals && residualsDrawer) {
+    btnToggleResiduals.addEventListener('click', () => {
+      const isHidden = residualsDrawer.classList.toggle('hidden');
+      btnToggleResiduals.setAttribute('aria-expanded', String(!isHidden));
+    });
+  }
+
+  const closeShieldModal = () => {
+    if (modalShield) modalShield.classList.add('hidden');
+  };
+
+  if (btnOpenShield && modalShield) {
+    btnOpenShield.addEventListener('click', () => {
+      loadPlatformShieldWhitelist();
+      modalShield.classList.remove('hidden');
+    });
+  }
+  if (btnCloseShield) btnCloseShield.addEventListener('click', closeShieldModal);
+  if (btnCloseShieldFooter) btnCloseShieldFooter.addEventListener('click', closeShieldModal);
+  if (modalShield) {
+    modalShield.addEventListener('click', (e) => {
+      if (e.target === modalShield) closeShieldModal();
+    });
+  }
+
+  const addShieldItem = async (rawVal) => {
+    const val = String(rawVal || '').trim();
+    if (!val) return;
+    if (!currentShieldWhitelist.some(x => x.toLowerCase() === val.toLowerCase())) {
+      currentShieldWhitelist.push(val);
+      if (window.electronAPI && typeof window.electronAPI.savePlatformShieldWhitelist === 'function') {
+        const res = await window.electronAPI.savePlatformShieldWhitelist(currentShieldWhitelist);
+        if (res && Array.isArray(res.whitelist)) {
+          currentShieldWhitelist = res.whitelist;
+        }
+      }
+      renderPlatformShieldWhitelist();
+      const msg = (window.i18n && window.i18n.t)
+        ? window.i18n.t('toast_shield_added', { item: val })
+        : `Added '${val}' to Platform Shield Whitelist.`;
+      showToast(msg, 'success');
+    }
+    if (inputShield) inputShield.value = '';
+  };
+
+  if (btnAddShield && inputShield) {
+    btnAddShield.addEventListener('click', () => addShieldItem(inputShield.value));
+    inputShield.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addShieldItem(inputShield.value);
+      }
+    });
+  }
+
+  if (btnBrowseShield) {
+    btnBrowseShield.addEventListener('click', async () => {
+      if (window.electronAPI && typeof window.electronAPI.pickShieldFolder === 'function') {
+        const res = await window.electronAPI.pickShieldFolder();
+        if (res && !res.canceled && res.folderPath) {
+          await addShieldItem(res.folderPath);
+        }
+      }
+    });
+  }
+
+  loadPlatformShieldWhitelist();
+}
+
+async function loadPlatformShieldWhitelist() {
+  try {
+    if (window.electronAPI && typeof window.electronAPI.getPlatformShieldWhitelist === 'function') {
+      const res = await window.electronAPI.getPlatformShieldWhitelist();
+      if (res && Array.isArray(res.whitelist)) {
+        currentShieldWhitelist = res.whitelist;
+      }
+    }
+  } catch (_) {}
+  renderPlatformShieldWhitelist();
+}
+
+function renderPlatformShieldWhitelist() {
+  const badgeSidebar = document.getElementById('shield-whitelist-count-badge');
+  const badgeModal = document.getElementById('shield-modal-count');
+  const listEl = document.getElementById('shield-custom-whitelist-list');
+
+  if (badgeSidebar) badgeSidebar.textContent = currentShieldWhitelist.length;
+  if (badgeModal) badgeModal.textContent = currentShieldWhitelist.length;
+  if (!listEl) return;
+
+  listEl.innerHTML = '';
+  if (currentShieldWhitelist.length === 0) {
+    const emptyText = (window.i18n && window.i18n.t)
+      ? window.i18n.t('shield_empty_custom')
+      : 'No custom whitelist entries added yet.';
+    listEl.innerHTML = `<div class="residual-empty-msg">${sanitize(emptyText)}</div>`;
+    return;
+  }
+
+  const removeText = (window.i18n && window.i18n.t) ? window.i18n.t('btn_shield_remove') : 'Remove';
+  currentShieldWhitelist.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'shield-custom-item';
+    row.innerHTML = `
+      <span>${sanitize(item)}</span>
+      <button type="button" class="shield-remove-btn" data-idx="${idx}">${sanitize(removeText)}</button>
+    `;
+    const btnRem = row.querySelector('.shield-remove-btn');
+    if (btnRem) {
+      btnRem.addEventListener('click', async () => {
+        const removed = currentShieldWhitelist[idx];
+        currentShieldWhitelist.splice(idx, 1);
+        if (window.electronAPI && typeof window.electronAPI.savePlatformShieldWhitelist === 'function') {
+          const res = await window.electronAPI.savePlatformShieldWhitelist(currentShieldWhitelist);
+          if (res && Array.isArray(res.whitelist)) {
+            currentShieldWhitelist = res.whitelist;
+          }
+        }
+        renderPlatformShieldWhitelist();
+        const msg = (window.i18n && window.i18n.t)
+          ? window.i18n.t('toast_shield_removed', { item: removed })
+          : `Removed '${removed}' from Platform Shield Whitelist.`;
+        showToast(msg, 'info');
+      });
+    }
+    listEl.appendChild(row);
+  });
+}
+
+async function populateUninstallResidualsPreview(apps) {
+  const box = document.getElementById('uninstall-residuals-preview-box');
+  const btnToggle = document.getElementById('btn-toggle-residuals-preview');
+  const drawer = document.getElementById('residuals-preview-drawer');
+  const loadingRow = document.getElementById('residuals-preview-loading');
+  const contentBox = document.getElementById('residuals-preview-content');
+  const countBadge = document.getElementById('residuals-preview-count-badge');
+  const foldersCount = document.getElementById('residuals-folders-count');
+  const foldersList = document.getElementById('residuals-folders-list');
+  const regCount = document.getElementById('residuals-reg-count');
+  const regList = document.getElementById('residuals-reg-list');
+  const shieldedSection = document.getElementById('residuals-shielded-section');
+  const shieldedList = document.getElementById('residuals-shielded-list');
+
+  if (!box || !window.electronAPI || typeof window.electronAPI.previewUninstallResiduals !== 'function') return;
+
+  box.classList.remove('hidden');
+  if (drawer) drawer.classList.add('hidden');
+  if (btnToggle) btnToggle.setAttribute('aria-expanded', 'false');
+  if (loadingRow) loadingRow.classList.remove('hidden');
+  if (contentBox) contentBox.classList.add('hidden');
+  if (countBadge) countBadge.textContent = '...';
+
+  try {
+    const res = await window.electronAPI.previewUninstallResiduals(apps);
+    const folders = (res && Array.isArray(res.folders)) ? res.folders : [];
+    const regKeys = (res && Array.isArray(res.registryKeys)) ? res.registryKeys : [];
+    const shielded = (res && Array.isArray(res.shieldedItems)) ? res.shieldedItems : [];
+
+    if (loadingRow) loadingRow.classList.add('hidden');
+    if (contentBox) contentBox.classList.remove('hidden');
+
+    const totalPurgeable = folders.length + regKeys.length;
+    if (countBadge) countBadge.textContent = String(totalPurgeable);
+    if (foldersCount) foldersCount.textContent = String(folders.length);
+    if (regCount) regCount.textContent = String(regKeys.length);
+
+    const noneMsg = (window.i18n && window.i18n.t)
+      ? window.i18n.t('residuals_none_found')
+      : 'No orphan directories or registry keys detected.';
+
+    if (foldersList) {
+      foldersList.innerHTML = '';
+      if (folders.length === 0) {
+        foldersList.innerHTML = `<div class="residual-empty-msg">${sanitize(noneMsg)}</div>`;
+      } else {
+        folders.forEach((f) => {
+          const row = document.createElement('label');
+          row.className = 'residual-item-row';
+          row.innerHTML = `
+            <input type="checkbox" class="custom-checkbox residual-purge-chk" data-path="${sanitize(f.path)}" checked />
+            <span>${sanitize(f.path)}</span>
+          `;
+          foldersList.appendChild(row);
+        });
+      }
+    }
+
+    if (regList) {
+      regList.innerHTML = '';
+      if (regKeys.length === 0) {
+        regList.innerHTML = `<div class="residual-empty-msg">${sanitize(noneMsg)}</div>`;
+      } else {
+        regKeys.forEach((rk) => {
+          const row = document.createElement('label');
+          row.className = 'residual-item-row';
+          row.innerHTML = `
+            <input type="checkbox" class="custom-checkbox residual-purge-chk" data-path="${sanitize(rk.path)}" checked />
+            <span>${sanitize(rk.path)}</span>
+          `;
+          regList.appendChild(row);
+        });
+      }
+    }
+
+    if (shieldedSection && shieldedList) {
+      shieldedList.innerHTML = '';
+      if (shielded.length === 0) {
+        shieldedSection.classList.add('hidden');
+      } else {
+        shieldedSection.classList.remove('hidden');
+        shielded.forEach((sh) => {
+          const row = document.createElement('div');
+          row.className = 'residual-item-row is-shielded';
+          row.innerHTML = `<span>${sanitize(sh.path)}</span>`;
+          shieldedList.appendChild(row);
+        });
+      }
+    }
+  } catch (_) {
+    if (loadingRow) loadingRow.classList.add('hidden');
+    if (countBadge) countBadge.textContent = '0';
+  }
+}
+
+function getExcludedResidualPaths() {
+  const excluded = [];
+  document.querySelectorAll('#uninstall-residuals-preview-box .residual-purge-chk').forEach((chk) => {
+    if (!chk.checked && chk.dataset.path) {
+      excluded.push(chk.dataset.path);
+    }
+  });
+  return excluded;
 }
 
 function shouldCreateRestorePoint() {
@@ -2858,6 +3469,9 @@ async function handleScanInstalled() {
       
       setStatusBar('Escaneo completo', `Se detectaron ${totalCount} aplicaciones instaladas`, 100, 'idle');
       updateInstalledSelectionStats();
+      if (typeof renderBundlesTable === 'function') {
+        renderBundlesTable();
+      }
       setTimeout(() => resetStatusBar(), 3500);
     }
   } catch (err) {
@@ -3098,11 +3712,14 @@ function handleUninstallClean(app) {
       markAppUninstalled(data ? data.success : false, data ? data.cancelled : false);
     });
 
+    const excludedResiduals = getExcludedResidualPaths();
     window.electronAPI.uninstallAppClean({
       ...app,
-      createRestorePoint: shouldCreateRestorePoint()
+      createRestorePoint: shouldCreateRestorePoint(),
+      excludedResiduals
     });
   }, countdownSec, confirmBtnText);
+  populateUninstallResidualsPreview([app]);
 }
 
 // ─── Batch Clean Uninstall Action ────────────────────────────────────────────
@@ -3134,6 +3751,7 @@ function handleUninstallSelected() {
   }
 
   showConfirmationModal(warningMsg, async () => {
+    const excludedResiduals = getExcludedResidualPaths();
     isUpdating = true;
     currentActiveOperation = 'uninstall';
     isBatchUninstallCancelled = false;
@@ -3210,7 +3828,8 @@ function handleUninstallSelected() {
 
         window.electronAPI.uninstallAppClean({
           ...currentApp,
-          createRestorePoint: shouldCreateRestorePoint()
+          createRestorePoint: shouldCreateRestorePoint(),
+          excludedResiduals
         });
       });
     }
@@ -3228,6 +3847,7 @@ function handleUninstallSelected() {
       showToast(`Se han desinstalado ${total} aplicación(es) limpiamente.`, 'success');
     }
   }, countdown, confirmBtnText);
+  populateUninstallResidualsPreview(selectedApps);
 }
 
 // ─── GPU & Graphics Control Panel Logic ──────────────────────────────────────
@@ -3357,14 +3977,85 @@ const GENERIC_GPU_SVG = `<svg width="32" height="32" viewBox="0 0 24 24" fill="n
   <path d="M5 17v3M7.5 17v3M10 17v3M14 17v3M16.5 17v3M19 17v3"/>
 </svg>`;
 
-function renderGpuInfo(data) {
-  const gpus = data.GPUs || [];
-  const status = data.InstalledStatus || {};
+function isDedicatedGpu(gpu) {
+  if (!gpu) return false;
+  const name = (gpu.Name || '').toLowerCase();
+  const ram = gpu.AdapterRAM || 0;
+  if (name.includes('nvidia') || name.includes('geforce') || name.includes('rtx') || name.includes('gtx') || name.includes('quadro')) return true;
+  if (name.includes('arc') || name.includes('intel arc')) return true;
+  if ((name.includes('radeon') || name.includes('amd')) && ram > 1073741824) return true;
+  return false;
+}
 
-  // Prioritize dedicated GPU (NVIDIA or AMD discrete) over integrated
-  let primaryGpu = gpus.find(g => (g.Name || '').toLowerCase().includes('nvidia')) ||
-                   gpus.find(g => (g.Name || '').toLowerCase().includes('radeon') && (g.AdapterRAM || 0) > 1000000000) ||
-                   gpus[0] || { Name: 'Adaptador de pantalla genérico', DriverVersion: '—', AdapterRAM: 0 };
+function renderGpuInfo(data) {
+  const rawGpus = data.GPUs || [];
+  const gpus = [];
+  const seen = new Set();
+  for (const g of rawGpus) {
+    if (!g || !g.Name) continue;
+    const clean = g.Name.trim();
+    if (seen.has(clean)) continue;
+    seen.add(clean);
+    gpus.push(g);
+  }
+
+  if (gpus.length === 0) {
+    gpus.push({ Name: 'Adaptador de pantalla genérico', DriverVersion: '—', AdapterRAM: 0 });
+  }
+
+  // Prioritize dedicated GPU by default if not manually chosen
+  if (currentSelectedGpuIndex < 0 || currentSelectedGpuIndex >= gpus.length) {
+    const dedicatedIdx = gpus.findIndex(g => isDedicatedGpu(g));
+    currentSelectedGpuIndex = dedicatedIdx !== -1 ? dedicatedIdx : 0;
+  }
+
+  // Multi-GPU Selector Container
+  const selectorContainer = document.getElementById('gpu-selector-container');
+  const selectorPills = document.getElementById('gpu-selector-pills');
+  if (selectorContainer && selectorPills) {
+    if (gpus.length > 1) {
+      selectorContainer.classList.remove('hidden');
+      selectorPills.innerHTML = '';
+
+      const isEs = window.i18n && window.i18n.currentLang === 'es';
+      const dedicatedBadgeText = window.i18n ? window.i18n.t('gpu_badge_dedicated') : (isEs ? 'Dedicada' : 'Dedicated');
+      const integratedBadgeText = window.i18n ? window.i18n.t('gpu_badge_integrated') : (isEs ? 'Integrada' : 'Integrated');
+
+      gpus.forEach((gpu, idx) => {
+        const isDed = isDedicatedGpu(gpu);
+        const isNvidia = (gpu.Name || '').toLowerCase().includes('nvidia');
+        const isAmd = (gpu.Name || '').toLowerCase().includes('amd') || (gpu.Name || '').toLowerCase().includes('radeon');
+        const isIntel = (gpu.Name || '').toLowerCase().includes('intel');
+        const themeClass = isNvidia ? 'theme-nvidia' : (isAmd ? 'theme-amd' : (isIntel ? 'theme-intel' : ''));
+        const badgeClass = isDed ? 'dedicated' : 'integrated';
+        const badgeLabel = isDed ? dedicatedBadgeText : integratedBadgeText;
+
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = `gpu-pill ${themeClass} ${idx === currentSelectedGpuIndex ? 'active' : ''}`;
+        pill.innerHTML = `
+          <span class="gpu-pill-name">${sanitize(gpu.Name)}</span>
+          <span class="gpu-pill-badge ${badgeClass}">${badgeLabel}</span>
+        `;
+        pill.addEventListener('click', () => {
+          currentSelectedGpuIndex = idx;
+          const allPills = selectorPills.querySelectorAll('.gpu-pill');
+          allPills.forEach((p, i) => p.classList.toggle('active', i === idx));
+          renderSelectedGpuDashboard(data, gpus, currentSelectedGpuIndex);
+        });
+        selectorPills.appendChild(pill);
+      });
+    } else {
+      selectorContainer.classList.add('hidden');
+    }
+  }
+
+  renderSelectedGpuDashboard(data, gpus, currentSelectedGpuIndex);
+}
+
+function renderSelectedGpuDashboard(data, gpus, gpuIndex) {
+  const primaryGpu = gpus[gpuIndex] || gpus[0];
+  const status = data.InstalledStatus || {};
 
   const isNvidia = (primaryGpu.Name || '').toLowerCase().includes('nvidia');
   const isAmd = (primaryGpu.Name || '').toLowerCase().includes('amd') || (primaryGpu.Name || '').toLowerCase().includes('radeon');
@@ -3402,8 +4093,12 @@ function renderGpuInfo(data) {
   }
   if (statGpuVram) {
     const vramBytes = primaryGpu.AdapterRAM || 0;
-    if (vramBytes > 0) {
+    if (vramBytes >= 1073741824) {
       statGpuVram.textContent = `${(vramBytes / (1024 * 1024 * 1024)).toFixed(0)} GB`;
+    } else if (vramBytes > 0) {
+      statGpuVram.textContent = `${Math.round(vramBytes / (1024 * 1024))} MB`;
+    } else {
+      statGpuVram.textContent = 'Shared';
     }
   }
 
@@ -3549,15 +4244,16 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   // Metric 1: VRAM
   const vramTotalMb = smi?.MemoryTotalMb || (primaryGpu.AdapterRAM ? Math.round(primaryGpu.AdapterRAM / (1024 * 1024)) : 0);
   const vramUsedMb = smi?.MemoryUsedMb || 0;
-  const vramTotalGb = vramTotalMb > 0 ? (vramTotalMb / 1024).toFixed(1) : '—';
-  const vramUsedGb = vramUsedMb > 0 ? (vramUsedMb / 1024).toFixed(1) : '0.0';
+  const isDedicated = isDedicatedGpu(primaryGpu);
+  const vramTotalFormatted = vramTotalMb >= 1024 ? `${(vramTotalMb / 1024).toFixed(1)} GB` : (vramTotalMb > 0 ? `${vramTotalMb} MB` : 'Shared');
+  const vramUsedFormatted = vramUsedMb > 0 ? `${(vramUsedMb / 1024).toFixed(1)} GB ${isEs ? 'en uso' : 'in use'}` : (isDedicated ? (isEs ? 'Memoria dedicada activa' : 'Active dedicated memory') : (isEs ? 'Memoria dinámica compartida' : 'Dynamic shared memory'));
   const vramPct = vramTotalMb > 0 ? Math.min(100, Math.round((vramUsedMb / vramTotalMb) * 100)) : 10;
 
   const metricVramTotal = document.getElementById('metric-vram-total');
   const metricVramUsed = document.getElementById('metric-vram-used');
   const metricVramBar = document.getElementById('metric-vram-bar');
-  if (metricVramTotal) metricVramTotal.textContent = `${vramTotalGb} GB`;
-  if (metricVramUsed) metricVramUsed.textContent = vramUsedMb > 0 ? `${vramUsedGb} GB ${isEs ? 'en uso' : 'in use'}` : (isEs ? 'Memoria dedicada activa' : 'Active dedicated memory');
+  if (metricVramTotal) metricVramTotal.textContent = vramTotalFormatted;
+  if (metricVramUsed) metricVramUsed.textContent = vramUsedFormatted;
   if (metricVramBar) metricVramBar.style.width = `${Math.max(8, vramPct)}%`;
 
   // Metric 2: Temperature
@@ -3571,8 +4267,13 @@ function renderGpuDetailsDashboard(primaryGpu, isNvidia, isAmd, isIntel, status,
   if (metricTempBar) metricTempBar.style.width = hasTempSensor ? `${Math.min(100, Math.round((tempNum / 90) * 100))}%` : '0%';
   if (metricTempPill) {
     if (!hasTempSensor) {
-      metricTempPill.className = 'metric-status-pill';
-      metricTempPill.textContent = isEs ? 'Sensor N/D' : 'No sensor';
+      if (!isDedicated) {
+        metricTempPill.className = 'metric-status-pill pill-cool';
+        metricTempPill.textContent = isEs ? 'Integrada' : 'Integrated';
+      } else {
+        metricTempPill.className = 'metric-status-pill';
+        metricTempPill.textContent = isEs ? 'Sensor N/D' : 'No sensor';
+      }
     } else if (tempNum < 55) {
       metricTempPill.className = 'metric-status-pill pill-cool';
       metricTempPill.textContent = isEs ? 'Fresca' : 'Cool';
@@ -4156,9 +4857,9 @@ function bindRestoreControls() {
   }
 
   if (searchRestoreInput) {
-    searchRestoreInput.addEventListener('input', () => {
+    searchRestoreInput.addEventListener('input', debounce(() => {
       applyRestoreFilters();
-    });
+    }, 150));
   }
 }
 
@@ -5140,7 +5841,1124 @@ function updateCleanerProgressUI(data) {
   }
 }
 
+// ─── WinGet Engine Activation Modal & Handler ─────────────────────────────────
+function showWinGetActivationPrompt() {
+  const modal = document.getElementById('modal-winget-activation');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function hideWinGetActivationPrompt() {
+  const modal = document.getElementById('modal-winget-activation');
+  if (modal) modal.classList.add('hidden');
+  const statusBox = document.getElementById('winget-activation-status');
+  if (statusBox) statusBox.classList.add('hidden');
+  const btnRun = document.getElementById('btn-run-winget-activation');
+  if (btnRun) btnRun.disabled = false;
+}
+
+function setupWinGetActivationListeners() {
+  const btnClose = document.getElementById('btn-close-winget-activation');
+  if (btnClose) btnClose.addEventListener('click', hideWinGetActivationPrompt);
+
+  const btnCancel = document.getElementById('btn-cancel-winget-activation');
+  if (btnCancel) btnCancel.addEventListener('click', hideWinGetActivationPrompt);
+
+  const btnRun = document.getElementById('btn-run-winget-activation');
+  if (btnRun) {
+    btnRun.addEventListener('click', async () => {
+      btnRun.disabled = true;
+      const statusBox = document.getElementById('winget-activation-status');
+      const statusMsg = document.getElementById('winget-activation-msg');
+      if (statusBox) statusBox.classList.remove('hidden');
+      if (statusMsg) {
+        statusMsg.textContent = window.i18n ? window.i18n.t('winget_activating_wait') : 'Activating WinGet in Windows... Please wait.';
+      }
+
+      try {
+        const res = await window.electronAPI.enableWinGetInTerminal();
+        if (res && res.success) {
+          const okMsg = window.i18n ? window.i18n.t('winget_activated_success') : 'WinGet engine activated successfully! Refreshing...';
+          if (statusMsg) statusMsg.textContent = okMsg;
+          showToast(okMsg, 'success');
+          setTimeout(() => {
+            hideWinGetActivationPrompt();
+            fetchPackages();
+          }, 1500);
+        } else {
+          const errMsg = res?.error || 'Execution failed';
+          if (statusMsg) statusMsg.textContent = `Error: ${errMsg}`;
+          showToast(`Error: ${errMsg}`, 'error');
+          btnRun.disabled = false;
+        }
+      } catch (err) {
+        if (statusMsg) statusMsg.textContent = `Error: ${err.message}`;
+        showToast(`Error: ${err.message}`, 'error');
+        btnRun.disabled = false;
+      }
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Software Packs / Bundle Studio Logic
+// ══════════════════════════════════════════════════════════════════════════════
+let currentBundlePack = {
+  name: "My Software Pack",
+  description: "Custom software pack created with Wingetix",
+  packages: []
+};
+let bundleInstallInProgress = false;
+let bundleSearchQuery = "";
+
+function bindBundlesControls() {
+  const btnBundlesInstallAll = document.getElementById('btn-bundles-install-all');
+  const btnBundlesLoad = document.getElementById('btn-bundles-load');
+  const btnBundlesSave = document.getElementById('btn-bundles-save');
+  const btnBundlesExportInstalled = document.getElementById('btn-bundles-export-installed');
+  const btnHeroExportInstalled = document.getElementById('btn-hero-export-installed');
+  const btnBundleAddCustom = document.getElementById('btn-bundle-add-custom');
+  const btnBundlePickInstalled = document.getElementById('btn-bundle-pick-installed');
+  const btnBundleClear = document.getElementById('btn-bundle-clear');
+  const btnBundleCancelInstall = document.getElementById('btn-bundle-cancel-install');
+  const packNameInput = document.getElementById('bundle-pack-name');
+  const searchBundlesInput = document.getElementById('search-bundles-input');
+
+  // Empty state direct action buttons
+  const btnEmptyPick = document.getElementById('btn-empty-pick-installed');
+  const btnEmptyAdd = document.getElementById('btn-empty-add-pkg');
+  const btnEmptyLoad = document.getElementById('btn-empty-load');
+
+  // Modals elements: Add Package by ID
+  const modalAddPkg = document.getElementById('modal-bundle-add-pkg');
+  const btnCloseModalAdd = document.getElementById('btn-close-modal-add-pkg');
+  const btnCancelModalAdd = document.getElementById('btn-cancel-modal-add-pkg');
+  const btnSubmitModalAdd = document.getElementById('btn-submit-modal-add-pkg');
+  const inputModalPkgId = document.getElementById('input-modal-pkg-id');
+  const inputModalPkgName = document.getElementById('input-modal-pkg-name');
+
+  // Modals elements: Pick Installed Apps
+  const modalPickApps = document.getElementById('modal-bundle-pick-apps');
+  const btnCloseModalPick = document.getElementById('btn-close-modal-pick-apps');
+  const btnCancelModalPick = document.getElementById('btn-cancel-modal-pick-apps');
+  const btnSubmitModalPick = document.getElementById('btn-submit-modal-pick-apps');
+  const inputModalPickSearch = document.getElementById('input-modal-pick-search');
+  const btnModalPickAll = document.getElementById('btn-modal-pick-all');
+  const btnModalPickNone = document.getElementById('btn-modal-pick-none');
+
+  if (packNameInput) {
+    packNameInput.addEventListener('input', (e) => {
+      currentBundlePack.name = e.target.value.trim() || 'My Software Pack';
+    });
+  }
+
+  if (searchBundlesInput) {
+    searchBundlesInput.addEventListener('input', debounce((e) => {
+      bundleSearchQuery = (e.target.value || '').trim().toLowerCase();
+      renderBundlesTable();
+    }, 150));
+  }
+
+  if (btnBundlesInstallAll) {
+    btnBundlesInstallAll.addEventListener('click', handleBundlesInstallAll);
+  }
+  const btnHeroInstallPack = document.getElementById('btn-hero-install-pack');
+  if (btnHeroInstallPack) {
+    btnHeroInstallPack.addEventListener('click', handleBundlesInstallAll);
+  }
+
+  if (btnBundlesLoad) {
+    btnBundlesLoad.addEventListener('click', handleBundlesLoadPack);
+  }
+  if (btnEmptyLoad) {
+    btnEmptyLoad.addEventListener('click', handleBundlesLoadPack);
+  }
+
+  if (btnBundlesSave) {
+    btnBundlesSave.addEventListener('click', handleBundlesSavePack);
+  }
+
+  if (btnBundlesExportInstalled) {
+    btnBundlesExportInstalled.addEventListener('click', handleBundlesSavePack);
+  }
+  if (btnHeroExportInstalled) {
+    btnHeroExportInstalled.addEventListener('click', handleBundlesSavePack);
+  }
+
+  const openAddPkgModal = () => {
+    if (inputModalPkgId) inputModalPkgId.value = '';
+    if (inputModalPkgName) inputModalPkgName.value = '';
+    if (modalAddPkg) modalAddPkg.classList.remove('hidden');
+    if (inputModalPkgId) inputModalPkgId.focus();
+  };
+
+  const closeModalAdd = () => {
+    if (modalAddPkg) modalAddPkg.classList.add('hidden');
+  };
+
+  if (btnBundleAddCustom) btnBundleAddCustom.addEventListener('click', openAddPkgModal);
+  if (btnEmptyAdd) btnEmptyAdd.addEventListener('click', openAddPkgModal);
+  if (btnCloseModalAdd) btnCloseModalAdd.addEventListener('click', closeModalAdd);
+  if (btnCancelModalAdd) btnCancelModalAdd.addEventListener('click', closeModalAdd);
+  if (modalAddPkg) {
+    modalAddPkg.addEventListener('click', (e) => {
+      if (e.target === modalAddPkg) closeModalAdd();
+    });
+  }
+
+  if (btnSubmitModalAdd) {
+    btnSubmitModalAdd.addEventListener('click', () => {
+      const pkgId = (inputModalPkgId ? inputModalPkgId.value : '').trim();
+      const pkgName = (inputModalPkgName ? inputModalPkgName.value : '').trim();
+      if (!pkgId) {
+        if (inputModalPkgId) inputModalPkgId.focus();
+        return;
+      }
+      const existing = currentBundlePack.packages.find(p => p.id && p.id.toLowerCase() === pkgId.toLowerCase());
+      if (existing) {
+        showToast(window.i18n ? window.i18n.t('toast_bundle_already_exists', { id: pkgId }) : `Package ${pkgId} is already in the pack.`, 'warning');
+        return;
+      }
+      const matchedApp = allInstalledApps && allInstalledApps.find(a =>
+        (a.id && a.id.toLowerCase() === pkgId.toLowerCase()) ||
+        (a.name && a.name.toLowerCase() === (pkgName || pkgId).toLowerCase())
+      );
+      currentBundlePack.packages.push({
+        id: pkgId,
+        name: pkgName || pkgId,
+        version: '',
+        source: 'winget',
+        iconBase64: matchedApp?.iconBase64 || ''
+      });
+      closeModalAdd();
+      renderBundlesTable();
+      showToast(window.i18n ? window.i18n.t('toast_bundle_added', { name: pkgName || pkgId }) : `Added ${pkgName || pkgId} to the pack.`, 'success');
+    });
+  }
+
+  const closeModalPick = () => {
+    if (modalPickApps) modalPickApps.classList.add('hidden');
+  };
+
+  if (btnBundlePickInstalled) btnBundlePickInstalled.addEventListener('click', openPickInstalledModal);
+  if (btnEmptyPick) btnEmptyPick.addEventListener('click', openPickInstalledModal);
+  if (btnCloseModalPick) btnCloseModalPick.addEventListener('click', closeModalPick);
+  if (btnCancelModalPick) btnCancelModalPick.addEventListener('click', closeModalPick);
+  if (modalPickApps) {
+    modalPickApps.addEventListener('click', (e) => {
+      if (e.target === modalPickApps) closeModalPick();
+    });
+  }
+
+  // Keyboard shortcut: Escape closes active modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModalAdd();
+      closeModalPick();
+    }
+  });
+
+  if (btnSubmitModalPick) {
+    btnSubmitModalPick.addEventListener('click', () => {
+      const checkedBoxes = document.querySelectorAll('.pick-app-checkbox:checked:not(:disabled)');
+      let addedCount = 0;
+      const pendingApps = [];
+
+      checkedBoxes.forEach(cb => {
+        const appId = cb.getAttribute('data-id');
+        const appName = cb.getAttribute('data-name');
+        const appVersion = cb.getAttribute('data-version') || '';
+        if (appId) {
+          const fullApp = (allInstalledApps && allInstalledApps.find(a => a.id === appId)) || {};
+          pendingApps.push({
+            id: appId,
+            name: appName || appId,
+            version: appVersion,
+            source: 'winget',
+            iconBase64: fullApp.iconBase64 || ''
+          });
+        }
+      });
+
+      // Check for required dependencies (e.g. Steam games require Steam)
+      pendingApps.slice().forEach(pkg => {
+        const deps = getAppDependencies(pkg);
+        deps.forEach(dep => {
+          const alreadyInPack = currentBundlePack.packages.some(p => p.id && (p.id.toLowerCase() === dep.id.toLowerCase() || (p.name && p.name.toLowerCase() === dep.name.toLowerCase())));
+          const alreadyInPending = pendingApps.some(p => p.id && (p.id.toLowerCase() === dep.id.toLowerCase() || (p.name && p.name.toLowerCase() === dep.name.toLowerCase())));
+          if (!alreadyInPack && !alreadyInPending) {
+            const depApp = (allInstalledApps && allInstalledApps.find(a => a.id && a.id.toLowerCase() === dep.id.toLowerCase())) || {};
+            pendingApps.push({
+              id: dep.id,
+              name: dep.name,
+              version: '',
+              source: 'winget',
+              iconBase64: depApp.iconBase64 || ''
+            });
+            showToast(window.i18n ? window.i18n.t('toast_bundle_dep_added', { dep: dep.name, app: pkg.name || pkg.id }) : `Added required dependency: ${dep.name}`, 'info');
+          }
+        });
+      });
+
+      pendingApps.forEach(pkg => {
+        if (!currentBundlePack.packages.some(p => p.id && p.id.toLowerCase() === pkg.id.toLowerCase())) {
+          currentBundlePack.packages.push(pkg);
+          addedCount++;
+        }
+      });
+
+      closeModalPick();
+      renderBundlesTable();
+      if (addedCount > 0) {
+        showToast(window.i18n ? window.i18n.t('toast_bundle_added_multiple', { count: addedCount }) : `Added ${addedCount} applications to the pack.`, 'success');
+      }
+    });
+  }
+
+  if (inputModalPickSearch) {
+    inputModalPickSearch.addEventListener('input', debounce((e) => {
+      const q = (e.target.value || '').trim().toLowerCase();
+      document.querySelectorAll('#modal-pick-apps-tbody tr.pick-app-row').forEach(row => {
+        const text = (row.textContent || '').toLowerCase();
+        const rowId = (row.getAttribute('data-id') || '').toLowerCase();
+        row.style.display = (text.includes(q) || rowId.includes(q)) ? '' : 'none';
+      });
+      updatePickModalCount();
+    }, 150));
+  }
+
+  const chkModalPickHeader = document.getElementById('chk-modal-pick-header');
+  if (chkModalPickHeader) {
+    chkModalPickHeader.addEventListener('change', () => {
+      const isChecked = chkModalPickHeader.checked;
+      document.querySelectorAll('.pick-app-checkbox:not(:disabled)').forEach(cb => {
+        const tr = cb.closest('tr');
+        if (tr && tr.style.display !== 'none') {
+          cb.checked = isChecked;
+          tr.classList.toggle('is-selected', isChecked);
+        }
+      });
+      updatePickModalCount();
+    });
+  }
+
+  if (btnModalPickAll) {
+    btnModalPickAll.addEventListener('click', () => {
+      document.querySelectorAll('.pick-app-checkbox:not(:disabled)').forEach(cb => {
+        const tr = cb.closest('tr');
+        if (tr && tr.style.display !== 'none') {
+          cb.checked = true;
+          tr.classList.add('is-selected');
+        }
+      });
+      updatePickModalCount();
+    });
+  }
+
+  if (btnModalPickNone) {
+    btnModalPickNone.addEventListener('click', () => {
+      document.querySelectorAll('.pick-app-checkbox:not(:disabled)').forEach(cb => {
+        cb.checked = false;
+        const tr = cb.closest('tr');
+        if (tr) tr.classList.remove('is-selected');
+      });
+      updatePickModalCount();
+    });
+  }
+
+  const btnClearTray = document.getElementById('btn-modal-pick-clear-tray');
+  if (btnClearTray) {
+    btnClearTray.addEventListener('click', () => {
+      document.querySelectorAll('.pick-app-checkbox:not(:disabled)').forEach(cb => {
+        cb.checked = false;
+        const tr = cb.closest('tr');
+        if (tr) tr.classList.remove('is-selected');
+      });
+      updatePickModalCount();
+    });
+  }
+
+  if (btnBundleClear) {
+    btnBundleClear.addEventListener('click', () => {
+      if (currentBundlePack.packages.length === 0) return;
+      currentBundlePack.packages = [];
+      renderBundlesTable();
+      showToast(window.i18n ? window.i18n.t('toast_bundle_cleared') : 'Software pack cleared.', 'info');
+    });
+  }
+
+  const bundleApi = window.electronAPI || window.wingetAPI;
+
+  if (btnBundleCancelInstall) {
+    btnBundleCancelInstall.addEventListener('click', () => {
+      if (bundleApi?.bundlesCancelInstall) {
+        bundleApi.bundlesCancelInstall();
+        setStatusBar('Cancelling installation...', 'Stopping process and cancelling pending packages...', null, 'busy');
+        showToast(window.i18n ? window.i18n.t('toast_bundle_install_cancelled') : 'Batch installation cancelled.', 'warning');
+      }
+    });
+  }
+
+  // Setup IPC bundle install progress listeners
+  if (bundleApi?.onBundleInstallProgress) {
+    bundleApi.onBundleInstallProgress((data) => {
+      handleBundleInstallProgress(data);
+    });
+  }
+
+  if (bundleApi?.onBundleInstallDone) {
+    bundleApi.onBundleInstallDone((result) => {
+      handleBundleInstallDone(result);
+    });
+  }
+}
+
+function updatePickModalCount() {
+  const countEl = document.getElementById('modal-pick-count-text');
+  const checkedBoxes = Array.from(document.querySelectorAll('.pick-app-checkbox:checked:not(:disabled)'));
+  const allEnabledBoxes = document.querySelectorAll('.pick-app-checkbox:not(:disabled)');
+  const chkHeader = document.getElementById('chk-modal-pick-header');
+  const total = document.querySelectorAll('.pick-app-checkbox').length;
+  if (countEl) {
+    countEl.textContent = `${checkedBoxes.length} of ${total} apps selected`;
+  }
+  if (chkHeader && allEnabledBoxes.length > 0) {
+    chkHeader.checked = (checkedBoxes.length === allEnabledBoxes.length);
+    chkHeader.indeterminate = (checkedBoxes.length > 0 && checkedBoxes.length < allEnabledBoxes.length);
+  }
+
+  // Update live preview tray of selected apps
+  const tray = document.getElementById('modal-pick-selected-tray');
+  const trayIcons = document.getElementById('modal-pick-selected-icons');
+  const trayBadge = document.getElementById('modal-pick-tray-badge');
+
+  if (tray && trayIcons) {
+    if (checkedBoxes.length === 0) {
+      tray.classList.add('hidden');
+      trayIcons.innerHTML = '';
+      if (trayBadge) trayBadge.textContent = '0';
+    } else {
+      tray.classList.remove('hidden');
+      if (trayBadge) trayBadge.textContent = String(checkedBoxes.length);
+
+      trayIcons.innerHTML = checkedBoxes.map(cb => {
+        const appId = cb.getAttribute('data-id');
+        const appName = cb.getAttribute('data-name') || appId;
+        const app = (allInstalledApps && allInstalledApps.find(a => a.id === appId)) || { id: appId, name: appName };
+        const iconHtml = renderAppIcon(app);
+
+        return `
+          <div class="selected-app-chip" data-id="${escapeHtml(appId)}" title="${escapeHtml(appName)}">
+            <div class="selected-app-chip-icon">${iconHtml}</div>
+            <span class="selected-app-chip-name">${escapeHtml(appName)}</span>
+            <button type="button" class="selected-app-chip-remove" data-id="${escapeHtml(appId)}" title="Remove" aria-label="Remove">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      // Wire remove clicks on individual chips
+      trayIcons.querySelectorAll('.selected-app-chip').forEach(chip => {
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const targetId = chip.getAttribute('data-id');
+          const cb = document.querySelector(`.pick-app-checkbox[data-id="${targetId}"]`);
+          if (cb && !cb.disabled) {
+            cb.checked = false;
+            const tr = cb.closest('tr');
+            if (tr) tr.classList.remove('is-selected');
+            updatePickModalCount();
+          }
+        });
+      });
+    }
+  }
+}
+
+function getAppDependencies(app) {
+  const deps = [];
+  if (!app) return deps;
+  const id = String(app.id || '').toLowerCase();
+  const name = String(app.name || '').toLowerCase();
+  const uninst = String(app.uninstallString || '').toLowerCase();
+  const loc = String(app.installLocation || '').toLowerCase();
+
+  // Steam Games & Steam Apps (e.g. Counter-Strike 2, Wallpaper Engine, Dota 2, etc.)
+  const isSteamApp = id.startsWith('steam app ') || 
+                     id.includes('steamapp') ||
+                     uninst.includes('steam://') || 
+                     uninst.includes('steam.exe') || 
+                     loc.includes('steamapps') ||
+                     (id !== 'valve.steam' && name.includes('(steam)'));
+  if (isSteamApp && id !== 'valve.steam' && !name.startsWith('steam') && name !== 'valve steam') {
+    deps.push({
+      id: 'Valve.Steam',
+      name: 'Steam'
+    });
+  }
+
+  // Ubisoft Games & Apps (e.g. Rainbow Six Siege, Far Cry, Ubisoft Anti-Cheat)
+  const isUbisoftApp = (name.includes('ubisoft') || loc.includes('ubisoft') || uninst.includes('uplay')) && 
+                       id !== 'ubisoft.connect' && !name.includes('ubisoft connect');
+  if (isUbisoftApp) {
+    deps.push({
+      id: 'Ubisoft.Connect',
+      name: 'Ubisoft Connect'
+    });
+  }
+
+  // Epic Games
+  const isEpicApp = (uninst.includes('com.epicgames.launcher') || loc.includes('epic games') || id.startsWith('epicgames.')) &&
+                    id !== 'epicgames.epicgameslauncher' && !name.includes('epic games launcher');
+  if (isEpicApp) {
+    deps.push({
+      id: 'EpicGames.EpicGamesLauncher',
+      name: 'Epic Games Launcher'
+    });
+  }
+
+  // Riot Games (e.g. VALORANT, League of Legends)
+  const isRiotApp = (name === 'valorant' || name.includes('league of legends') || uninst.includes('riotclient://')) &&
+                    !name.includes('riot client');
+  if (isRiotApp) {
+    deps.push({
+      id: 'RiotGames.RiotClient',
+      name: 'Riot Client'
+    });
+  }
+
+  return deps;
+}
+
+function openPickInstalledModal() {
+  const modal = document.getElementById('modal-bundle-pick-apps');
+  const tbody = document.getElementById('modal-pick-apps-tbody');
+  const searchInput = document.getElementById('input-modal-pick-search');
+  const chkHeader = document.getElementById('chk-modal-pick-header');
+  if (searchInput) searchInput.value = '';
+  if (chkHeader) {
+    chkHeader.checked = false;
+    chkHeader.indeterminate = false;
+  }
+
+  if (!modal || !tbody) return;
+
+  if (!allInstalledApps || allInstalledApps.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align: center; padding: 40px 20px;">
+          <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;">
+            <div class="spinner"></div>
+            <div style="font-size: 14px; font-weight: 600; color: #ffffff;">Scanning installed applications...</div>
+            <div style="font-size: 12px; color: var(--color-text-secondary); max-width: 360px; line-height: 1.5;">Querying Windows Registry and WinGet engine to detect all installed software. This will only take a moment.</div>
+          </div>
+        </td>
+      </tr>
+    `;
+    modal.classList.remove('hidden');
+    handleScanInstalled().then(() => {
+      openPickInstalledModal();
+    }).catch(err => {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #f87171; font-size: 13px;">Error scanning apps: ${escapeHtml(err.message)}</td></tr>`;
+    });
+    return;
+  }
+
+  // Sort apps alphabetically by name
+  const sortedApps = [...allInstalledApps].sort((a, b) => (a.name || a.id || '').localeCompare(b.name || b.id || ''));
+
+  // Generate table rows without Package ID or Status columns
+  const rowsHtml = sortedApps.map(app => {
+    const isAlreadyInPack = currentBundlePack.packages.some(p => p.id && p.id.toLowerCase() === (app.id || '').toLowerCase());
+    const iconHtml = renderAppIcon(app);
+    const deps = getAppDependencies(app);
+    const depBadges = deps.map(d => `<span class="app-dep-badge" title="${window.i18n ? window.i18n.t('tag_requires_dep', { dep: d.name }) : `Requires ${d.name}`}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>${window.i18n ? window.i18n.t('tag_requires_dep', { dep: d.name }) : `Requires ${d.name}`}</span>`).join('');
+    const inPackBadge = isAlreadyInPack ? `<span class="already-in-pack-badge">${window.i18n ? window.i18n.t('tag_already_in_pack') : 'Already in Pack'}</span>` : '';
+
+    return `
+      <tr class="pick-app-row ${isAlreadyInPack ? 'is-already-in-pack' : ''}" data-id="${escapeHtml(app.id || '')}">
+        <td class="col-check" style="width: 44px; text-align: center;">
+          <input type="checkbox" class="custom-checkbox pick-app-checkbox"
+                 data-id="${escapeHtml(app.id || '')}"
+                 data-name="${escapeHtml(app.name || '')}"
+                 data-version="${escapeHtml(app.version || '')}"
+                 ${isAlreadyInPack ? 'checked disabled' : ''}>
+        </td>
+        <td class="col-name" style="text-align: left;">
+          <div class="app-info-cell" style="display: flex; align-items: center; gap: 12px;">
+            ${iconHtml}
+            <div class="app-name-details" style="min-width: 0; overflow: hidden; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+              <span class="app-name" style="font-weight: 600; color: #fff; font-size: 13.5px;" title="${escapeHtml(app.name || app.id)}">
+                ${escapeHtml(app.name || app.id)}
+              </span>
+              ${depBadges}
+              ${inPackBadge}
+            </div>
+          </div>
+        </td>
+        <td class="col-version" style="width: 130px; text-align: center;">
+          <span class="version-badge badge-version" style="font-size: 11px;">
+            ${escapeHtml(app.version || '—')}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rowsHtml;
+  modal.classList.remove('hidden');
+  updatePickModalCount();
+
+  // Attach row click listeners for easy selection and dependency resolution
+  tbody.querySelectorAll('tr.pick-app-row').forEach(tr => {
+    tr.addEventListener('click', (e) => {
+      const cb = tr.querySelector('.pick-app-checkbox');
+      if (!cb || cb.disabled) return;
+      if (e.target !== cb) {
+        cb.checked = !cb.checked;
+      }
+      tr.classList.toggle('is-selected', cb.checked);
+
+      // If user checked this app, automatically select required dependencies (e.g. Steam)
+      if (cb.checked) {
+        const appId = cb.getAttribute('data-id');
+        const matchedApp = allInstalledApps.find(a => a.id === appId);
+        if (matchedApp) {
+          const deps = getAppDependencies(matchedApp);
+          deps.forEach(dep => {
+            const inPack = currentBundlePack.packages.some(p => p.id && (p.id.toLowerCase() === dep.id.toLowerCase() || (p.name && p.name.toLowerCase() === dep.name.toLowerCase())));
+            if (inPack) return;
+
+            // Find checkbox for dependency in table
+            const depRow = Array.from(tbody.querySelectorAll('tr.pick-app-row')).find(r => {
+              const rId = (r.getAttribute('data-id') || '').toLowerCase();
+              const rName = (r.querySelector('.app-name')?.textContent || '').trim().toLowerCase();
+              return rId === dep.id.toLowerCase() || rName === dep.name.toLowerCase() || rName.startsWith(dep.name.toLowerCase());
+            });
+
+            if (depRow) {
+              const depCb = depRow.querySelector('.pick-app-checkbox');
+              if (depCb && !depCb.checked && !depCb.disabled) {
+                depCb.checked = true;
+                depRow.classList.add('is-selected');
+                showToast(window.i18n ? window.i18n.t('toast_bundle_dep_added', { dep: dep.name, app: matchedApp.name || matchedApp.id }) : `Automatically selected ${dep.name} (required by ${matchedApp.name || matchedApp.id}).`, 'info');
+              }
+            }
+          });
+        }
+      }
+
+      updatePickModalCount();
+    });
+  });
+}
+
+function findInstalledApp(pkg) {
+  if (!allInstalledApps || allInstalledApps.length === 0 || !pkg) return null;
+  const pId = String(pkg.id || '').trim().toLowerCase();
+  const pName = String(pkg.name || '').trim().toLowerCase();
+
+  return allInstalledApps.find(a => {
+    const aId = String(a.id || '').trim().toLowerCase();
+    const aName = String(a.name || '').trim().toLowerCase();
+
+    // 1. Direct ID match
+    if (pId && aId && aId === pId) return true;
+    // 2. Direct Name match (if length >= 3)
+    if (pName && aName && aName === pName && pName.length >= 3) return true;
+    // 3. ID matches Name
+    if (pId && aName && aName === pId) return true;
+    if (pName && aId && aId === pName) return true;
+    // 4. Namespaced match (e.g. ByteDance.CapCut -> CapCut)
+    if (pId.includes('.')) {
+      const last = pId.split('.').pop();
+      if (last && last.length >= 3 && (aId === last || aName === last)) return true;
+    }
+    if (aId.includes('.')) {
+      const last = aId.split('.').pop();
+      if (last && last.length >= 3 && (pId === last || pName === last)) return true;
+    }
+    return false;
+  }) || null;
+}
+
+function renderBundlesTable() {
+  const tbody = document.getElementById('bundles-tbody');
+  const tableWrapper = document.getElementById('bundles-table-wrapper');
+  const emptyState = document.getElementById('bundles-empty-state');
+  const statCount = document.getElementById('stat-bundle-count');
+  const statInstalled = document.getElementById('stat-bundle-installed');
+  const heroCount = document.getElementById('bundle-hero-count');
+  const heroInstalled = document.getElementById('bundle-hero-installed');
+  const btnInstallAll = document.getElementById('btn-bundles-install-all');
+  const btnHeroInstall = document.getElementById('btn-hero-install-pack');
+  const btnSave = document.getElementById('btn-bundles-save');
+
+  if (!tbody) return;
+
+  const totalApps = currentBundlePack.packages.length;
+  if (statCount) statCount.textContent = totalApps;
+  if (heroCount) heroCount.textContent = `${totalApps} Apps`;
+
+  // Calculate installed count using robust matcher
+  let installedCount = 0;
+  currentBundlePack.packages.forEach(pkg => {
+    if (findInstalledApp(pkg) || pkg.installed) installedCount++;
+  });
+  if (statInstalled) statInstalled.textContent = installedCount;
+  if (heroInstalled) heroInstalled.textContent = `${installedCount} Installed on PC`;
+
+  const chkHeader = document.getElementById('chk-bundle-header');
+
+  const btnHeroExport = document.getElementById('btn-hero-export-installed');
+  if (btnHeroExport) {
+    btnHeroExport.disabled = (totalApps === 0);
+  }
+  if (btnSave) {
+    btnSave.disabled = (totalApps === 0);
+  }
+
+  const filtered = currentBundlePack.packages.filter(pkg => {
+    if (!bundleSearchQuery) return true;
+    const nameMatch = (pkg.name || '').toLowerCase().includes(bundleSearchQuery);
+    const idMatch = (pkg.id || '').toLowerCase().includes(bundleSearchQuery);
+    return nameMatch || idMatch;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    if (tableWrapper) tableWrapper.classList.add('hidden');
+    if (emptyState) emptyState.classList.remove('hidden');
+    if (btnInstallAll) btnInstallAll.disabled = true;
+    if (btnHeroInstall) btnHeroInstall.disabled = true;
+    if (chkHeader) {
+      chkHeader.checked = false;
+      chkHeader.indeterminate = false;
+    }
+    return;
+  }
+
+  if (emptyState) emptyState.classList.add('hidden');
+  if (tableWrapper) tableWrapper.classList.remove('hidden');
+
+  const rows = filtered.map((pkg) => {
+    const installedMatch = findInstalledApp(pkg);
+    const isInst = !!installedMatch || !!pkg.installed;
+    const isChecked = pkg.selected !== undefined ? pkg.selected : !isInst;
+
+    let statusBadge = '';
+    if (bundleInstallInProgress && pkg.installStatus === 'installing') {
+      statusBadge = `<span class="bundle-status-badge bundle-status-installing">${window.i18n ? window.i18n.t('bundles_badge_installing') : 'Installing...'}</span>`;
+    } else if (pkg.installStatus === 'completed' || isInst) {
+      statusBadge = `<span class="bundle-status-badge bundle-status-installed">${window.i18n ? window.i18n.t('bundles_badge_installed') : 'Installed'}</span>`;
+    } else if (bundleInstallInProgress && pkg.installStatus === 'failed') {
+      statusBadge = `<span class="bundle-status-badge bundle-status-failed">${window.i18n ? window.i18n.t('bundles_badge_failed') : 'Failed'}</span>`;
+    } else {
+      statusBadge = `<span class="bundle-status-badge bundle-status-pending">${window.i18n ? window.i18n.t('bundles_badge_not_installed') : 'Not Installed'}</span>`;
+    }
+
+    // Auto-enrich pkg.iconBase64 if matched from system
+    if (installedMatch && installedMatch.iconBase64 && !pkg.iconBase64) {
+      pkg.iconBase64 = installedMatch.iconBase64;
+    }
+    const iconSource = (pkg.iconBase64 && pkg.iconBase64.length > 50) ? pkg : (installedMatch || pkg);
+    const iconHtml = renderAppIcon(iconSource);
+
+    return `
+      <tr class="bundle-app-row ${isChecked ? 'is-selected' : ''}" data-id="${escapeHtml(pkg.id || '')}">
+        <td class="col-check" style="width: 44px; text-align: center;">
+          <input type="checkbox" class="custom-checkbox bundle-app-checkbox" data-id="${escapeHtml(pkg.id || '')}" ${isChecked ? 'checked' : ''}>
+        </td>
+        <td class="col-name">
+          <div class="app-info-cell" style="display: flex; align-items: center; gap: 12px;">
+            ${iconHtml}
+            <div style="min-width: 0;">
+              <div style="font-weight: 600; color: #f8fafc; font-size: 13px;">${escapeHtml(pkg.name || pkg.id)}</div>
+              <div style="font-family: var(--font-mono); font-size: 11px; color: #38bdf8; opacity: 0.85;">${escapeHtml(pkg.id)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="col-version" style="font-size: 12px; color: var(--color-text-secondary); text-align: center;">${escapeHtml(pkg.version || 'Latest')}</td>
+        <td style="text-align: center;">${statusBadge}</td>
+        <td style="text-align: center;">
+          <button class="btn-bundle-action btn-bundle-remove-row" data-id="${escapeHtml(pkg.id)}" title="${window.i18n ? window.i18n.t('btn_bundle_remove_item') : 'Remove'}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = rows;
+
+  const updateBundleSelectionState = () => {
+    const allCbs = Array.from(tbody.querySelectorAll('.bundle-app-checkbox'));
+    const checkedCbs = Array.from(tbody.querySelectorAll('.bundle-app-checkbox:checked'));
+    if (chkHeader) {
+      chkHeader.checked = allCbs.length > 0 && checkedCbs.length === allCbs.length;
+      chkHeader.indeterminate = checkedCbs.length > 0 && checkedCbs.length < allCbs.length;
+    }
+    if (btnInstallAll) {
+      btnInstallAll.disabled = (checkedCbs.length === 0 || bundleInstallInProgress);
+    }
+    if (btnHeroInstall) {
+      btnHeroInstall.disabled = (checkedCbs.length === 0 || bundleInstallInProgress);
+    }
+  };
+
+  updateBundleSelectionState();
+
+  // Checkbox event listeners
+  tbody.querySelectorAll('.bundle-app-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = cb.getAttribute('data-id');
+      const tr = cb.closest('tr');
+      if (tr) tr.classList.toggle('is-selected', cb.checked);
+      const pkg = currentBundlePack.packages.find(p => p.id === id);
+      if (pkg) pkg.selected = cb.checked;
+      updateBundleSelectionState();
+    });
+  });
+
+  // Row click toggles checkbox
+  tbody.querySelectorAll('tr.bundle-app-row').forEach(tr => {
+    tr.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('input')) return;
+      const cb = tr.querySelector('.bundle-app-checkbox');
+      if (cb) {
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      }
+    });
+  });
+
+  // Header checkbox
+  if (chkHeader) {
+    chkHeader.onchange = () => {
+      const isChecked = chkHeader.checked;
+      tbody.querySelectorAll('.bundle-app-checkbox').forEach(cb => {
+        cb.checked = isChecked;
+        const id = cb.getAttribute('data-id');
+        const pkg = currentBundlePack.packages.find(p => p.id === id);
+        if (pkg) pkg.selected = isChecked;
+        const tr = cb.closest('tr');
+        if (tr) tr.classList.toggle('is-selected', isChecked);
+      });
+      updateBundleSelectionState();
+    };
+  }
+
+  tbody.querySelectorAll('.btn-bundle-remove-row').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idToRemove = btn.getAttribute('data-id');
+      currentBundlePack.packages = currentBundlePack.packages.filter(p => p.id !== idToRemove);
+      renderBundlesTable();
+    });
+  });
+}
+
+async function handleBundlesLoadPack() {
+  const api = window.electronAPI || window.wingetAPI;
+  if (!api || typeof api.bundlesLoadPack !== 'function') {
+    showToast('Load API unavailable.', 'error');
+    return;
+  }
+  try {
+    const res = await api.bundlesLoadPack();
+    if (res && res.canceled) return;
+    if (res && res.success) {
+      const loadedPack = res.pack || {
+        name: res.name || 'My Software Pack',
+        description: res.description || '',
+        packages: res.packages || []
+      };
+      if (!Array.isArray(loadedPack.packages)) {
+        loadedPack.packages = [];
+      }
+      currentBundlePack = loadedPack;
+
+      const packNameInput = document.getElementById('bundle-pack-name');
+      if (packNameInput) {
+        packNameInput.value = currentBundlePack.name || 'My Software Pack';
+      }
+
+      if (typeof switchView === 'function') {
+        switchView('bundles');
+      }
+
+      if (!allInstalledApps || allInstalledApps.length === 0) {
+        renderBundlesTable();
+        await handleScanInstalled();
+      }
+
+      // Clear any stale installStatus from saved files and enrich icons
+      currentBundlePack.packages.forEach(pkg => {
+        delete pkg.installStatus;
+        if (!pkg.iconBase64 && allInstalledApps && allInstalledApps.length > 0) {
+          const match = findInstalledApp(pkg);
+          if (match && match.iconBase64) {
+            pkg.iconBase64 = match.iconBase64;
+          }
+        }
+      });
+
+      renderBundlesTable();
+      showToast(window.i18n ? window.i18n.t('toast_bundle_loaded', { count: currentBundlePack.packages.length }) : `Software pack loaded with ${currentBundlePack.packages.length} apps.`, 'success');
+    } else if (res && !res.success) {
+      showToast(window.i18n ? window.i18n.t('toast_bundle_load_error', { error: res.error || 'Unknown error' }) : `Could not load pack: ${res.error || 'Unknown error'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function handleBundlesSavePack() {
+  const api = window.electronAPI || window.wingetAPI;
+  if (!api || typeof api.bundlesSavePack !== 'function') {
+    showToast('Pack API unavailable.', 'error');
+    return;
+  }
+  if (!currentBundlePack.packages || currentBundlePack.packages.length === 0) {
+    showToast(window.i18n ? window.i18n.t('toast_bundle_empty') : 'Your software pack is empty. Please add applications before continuing.', 'warning');
+    return;
+  }
+  const packNameInput = document.getElementById('bundle-pack-name');
+  if (packNameInput) {
+    currentBundlePack.name = packNameInput.value.trim() || 'My Software Pack';
+  }
+
+  // Ensure every package embeds its base64 icon and strips runtime installStatus
+  if (currentBundlePack.packages && Array.isArray(currentBundlePack.packages)) {
+    currentBundlePack.packages.forEach(pkg => {
+      delete pkg.installStatus;
+      if (!pkg.iconBase64) {
+        const match = findInstalledApp(pkg);
+        if (match && match.iconBase64) {
+          pkg.iconBase64 = match.iconBase64;
+        }
+      }
+    });
+  }
+  try {
+    const res = await api.bundlesSavePack(currentBundlePack);
+    if (res && res.success) {
+      showToast(window.i18n ? window.i18n.t('toast_bundle_saved') : 'Software pack created and saved successfully!', 'success');
+    } else if (res && !res.success && !res.canceled) {
+      showToast(`Error: ${res.error || 'Failed to save pack'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+function handleBundlesInstallAll() {
+  if (bundleInstallInProgress) return;
+  if (!currentBundlePack.packages || currentBundlePack.packages.length === 0) {
+    showToast(window.i18n ? window.i18n.t('toast_bundle_empty') : 'Your software pack is empty.', 'warning');
+    return;
+  }
+
+  // Get only checked applications
+  const checkedBoxes = Array.from(document.querySelectorAll('.bundle-app-checkbox:checked'));
+  if (checkedBoxes.length === 0) {
+    showToast(window.i18n ? window.i18n.t('toast_bundle_nothing_selected') : 'No applications selected. Please check at least one application to install.', 'warning');
+    return;
+  }
+
+  const selectedIds = new Set(checkedBoxes.map(cb => (cb.getAttribute('data-id') || '').toLowerCase()));
+  const packagesToInstall = currentBundlePack.packages.filter(p => p.id && selectedIds.has(p.id.toLowerCase()));
+
+  if (packagesToInstall.length === 0) {
+    showToast(window.i18n ? window.i18n.t('toast_bundle_nothing_selected') : 'No applications selected to install.', 'warning');
+    return;
+  }
+
+  const api = window.electronAPI || window.wingetAPI;
+  if (!api || typeof api.bundlesInstallPack !== 'function') {
+    showToast('Installation API unavailable.', 'error');
+    return;
+  }
+
+  bundleInstallInProgress = true;
+  const progressCard = document.getElementById('bundle-install-progress-card');
+  const progressBar = document.getElementById('bundle-install-progress-bar');
+  const percentText = document.getElementById('bundle-install-percent');
+  const currentText = document.getElementById('bundle-install-current-text');
+  const detailText = document.getElementById('bundle-install-detail-text');
+  const statsText = document.getElementById('bundle-install-stats-text');
+  const btnInstallAll = document.getElementById('btn-bundles-install-all');
+  const btnHeroInstall = document.getElementById('btn-hero-install-pack');
+
+  if (progressCard) {
+    progressCard.classList.remove('hud-fade-out');
+    progressCard.classList.remove('hidden');
+  }
+  if (progressBar) progressBar.style.width = '0%';
+  if (percentText) percentText.textContent = '0%';
+  const firstName = packagesToInstall[0]?.name || packagesToInstall[0]?.id || 'Starting...';
+  if (currentText) currentText.textContent = firstName;
+  if (detailText) detailText.textContent = `Preparing installation of ${packagesToInstall.length} app(s)...`;
+  if (statsText) statsText.textContent = `0 / ${packagesToInstall.length}`;
+  if (btnInstallAll) btnInstallAll.disabled = true;
+  if (btnHeroInstall) btnHeroInstall.disabled = true;
+
+  setStatusBar('Installing Software Pack...', `0 of ${packagesToInstall.length} completed`, 0, 'busy');
+
+  // Mark only selected packages as pending
+  packagesToInstall.forEach(p => p.installStatus = undefined);
+  renderBundlesTable();
+
+  showToast(window.i18n ? window.i18n.t('toast_bundle_install_started', { count: packagesToInstall.length }) : `Starting installation of ${packagesToInstall.length} selected apps...`, 'info');
+
+  api.bundlesInstallPack(packagesToInstall);
+}
+
+function handleBundleInstallProgress(data) {
+  const progressBar = document.getElementById('bundle-install-progress-bar');
+  const percentText = document.getElementById('bundle-install-percent');
+  const currentText = document.getElementById('bundle-install-current-text');
+  const detailText = document.getElementById('bundle-install-detail-text');
+  const statsText = document.getElementById('bundle-install-stats-text');
+
+  const current = data.current ?? data.index ?? 0;
+  const total = data.total || 1;
+  const pkgId = data.pkgId || data.packageId;
+  const pkgName = data.pkgName || data.name || pkgId;
+  const pct = data.percent !== undefined ? data.percent : Math.round((current / total) * 100);
+
+  if (progressBar) progressBar.style.width = `${pct}%`;
+  if (percentText) percentText.textContent = `${pct}%`;
+  if (currentText) currentText.textContent = pkgName;
+  if (detailText) {
+    detailText.textContent = data.message || `Installing: ${pkgName} (${current} of ${total})`;
+  }
+  if (statsText) {
+    statsText.textContent = `${current} / ${total}`;
+  }
+
+  // Update global bottom status bar with action and percentage
+  setStatusBar(
+    `Installing: ${pkgName}`,
+    data.message || `Package ${current} of ${total} (${pct}%)`,
+    pct,
+    'busy'
+  );
+
+  // Update status in package list
+  const pkg = currentBundlePack.packages.find(p => p.id && p.id.toLowerCase() === (pkgId || '').toLowerCase());
+  if (pkg) {
+    if (data.status === 'installing' || data.status === 'downloading' || data.status === 'verifying') {
+      pkg.installStatus = 'installing';
+    } else if (data.status === 'success' || data.status === 'done') {
+      pkg.installStatus = 'completed';
+    } else if (data.status === 'failed') {
+      pkg.installStatus = 'failed';
+    }
+  }
+  renderBundlesTable();
+}
+
+function handleBundleInstallDone(result) {
+  bundleInstallInProgress = false;
+  const progressCard = document.getElementById('bundle-install-progress-card');
+  const progressBar = document.getElementById('bundle-install-progress-bar');
+  const percentText = document.getElementById('bundle-install-percent');
+  const currentText = document.getElementById('bundle-install-current-text');
+  const detailText = document.getElementById('bundle-install-detail-text');
+  const statsText = document.getElementById('bundle-install-stats-text');
+  const btnInstallAll = document.getElementById('btn-bundles-install-all');
+  const btnHeroInstall = document.getElementById('btn-hero-install-pack');
+
+  if (btnInstallAll) btnInstallAll.disabled = false;
+  if (btnHeroInstall) btnHeroInstall.disabled = false;
+
+  const total = currentBundlePack?.packages?.length || 0;
+  const successCount = result.results ? result.results.filter(r => r.success).length : (result.installedCount || 0);
+
+  // Update packages installed status immediately from results
+  if (result.results && Array.isArray(result.results)) {
+    result.results.forEach(outcome => {
+      if (outcome.success) {
+        const pId = (outcome.pkgId || '').toLowerCase();
+        const pName = (outcome.pkgName || '').toLowerCase();
+        const pkg = currentBundlePack?.packages?.find(p =>
+          (p.id && p.id.toLowerCase() === pId) ||
+          (p.name && p.name.toLowerCase() === pName)
+        );
+        if (pkg) {
+          pkg.installStatus = 'completed';
+          pkg.installed = true;
+          pkg.selected = false;
+        }
+        if (Array.isArray(allInstalledApps)) {
+          const already = allInstalledApps.some(a =>
+            (a.id && a.id.toLowerCase() === pId) ||
+            (a.name && a.name.toLowerCase() === pName)
+          );
+          if (!already) {
+            allInstalledApps.push({
+              id: outcome.pkgId,
+              name: outcome.pkgName || outcome.pkgId,
+              version: 'Latest',
+              iconBase64: pkg?.iconBase64 || ''
+            });
+          }
+        }
+      }
+    });
+  }
+
+  // Refresh table immediately so badges switch to Installed
+  renderBundlesTable();
+
+  const hideProgressCard = (delayMs = 600) => {
+    setTimeout(async () => {
+      if (progressCard) {
+        progressCard.classList.add('hud-fade-out');
+        setTimeout(() => {
+          progressCard.classList.add('hidden');
+          progressCard.classList.remove('hud-fade-out');
+        }, 300);
+      }
+      resetStatusBar();
+      renderBundlesTable();
+      await handleScanInstalled();
+      renderBundlesTable();
+    }, delayMs);
+  };
+
+  if (result.success) {
+    if (progressBar) progressBar.style.width = '100%';
+    if (percentText) percentText.textContent = '100%';
+    if (currentText) currentText.textContent = 'Completed';
+    if (detailText) detailText.textContent = 'All packages installed successfully!';
+    if (statsText) statsText.textContent = `${successCount} / ${total}`;
+
+    setStatusBar('Pack installation completed', `All ${successCount} packages installed successfully`, 100, 'idle');
+    showToast(window.i18n ?
+      window.i18n.t('toast_bundle_install_done', { success: successCount, failed: 0 }) :
+      `Batch installation completed! ${successCount} installed.`, 'success');
+
+    hideProgressCard(600);
+  } else if (result.cancelled) {
+    if (detailText) detailText.textContent = 'Installation cancelled.';
+    setStatusBar('Installation cancelled', 'Software pack installation stopped by user', null, 'error');
+    showToast(window.i18n ? window.i18n.t('toast_bundle_install_cancelled') : 'Installation cancelled.', 'warning');
+    hideProgressCard(500);
+  } else {
+    const failedCount = result.results ? result.results.filter(r => !r.success).length : (result.failedCount || 1);
+    if (detailText) detailText.textContent = `Finished with errors: ${failedCount} package(s) failed.`;
+    setStatusBar('Installation finished with errors', `${failedCount} package(s) failed`, 100, 'error');
+    showToast(`Installation finished with errors: ${result.error || `${failedCount} failed`}`, 'error');
+    hideProgressCard(1200);
+  }
+}
+
 // ─── Bootstrap ─────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  setupWinGetActivationListeners();
+});
 
 

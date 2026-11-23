@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Script de activación y reparación de WinGet (Windows Package Manager) para la terminal de Windows.
 .DESCRIPTION
@@ -28,6 +28,12 @@ Write-Host "`n[PASO 1/4] Verificando variables de entorno PATH..." -ForegroundCo
 $localAppData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $env:USERPROFILE "AppData\Local" }
 $windowsAppsUser = Join-Path $localAppData "Microsoft\WindowsApps"
 
+# Detección de ruta física en C:\Program Files\WindowsApps (bypasses Windows 10 UAC execution alias bug)
+$physicalDir = Get-ChildItem "C:\Program Files\WindowsApps" -Filter "Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $physicalDir) {
+    $physicalDir = Get-ChildItem "C:\Program Files\WindowsApps" -Filter "Microsoft.DesktopAppInstaller_*_neutral__8wekyb3d8bbwe" -ErrorAction SilentlyContinue | Select-Object -First 1
+}
+
 # PATH del Usuario actual
 try {
     $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -41,6 +47,18 @@ try {
     }
 } catch {
     Write-Warning "  No se pudo actualizar PATH de usuario: $($_.Exception.Message)"
+}
+
+# Si es Administrador, asegurar la ruta física en Machine PATH
+if ($isElevated -and $physicalDir) {
+    try {
+        $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        if ($machinePath -split ';' -notcontains $physicalDir.FullName) {
+            $newMachinePath = "$($physicalDir.FullName);$machinePath"
+            [Environment]::SetEnvironmentVariable("Path", $newMachinePath, "Machine")
+            Write-Host "  -> Agregado '$($physicalDir.FullName)' a PATH del Sistema (Machine)." -ForegroundColor Green
+        }
+    } catch { }
 }
 
 # Si se ejecuta elevado (UAC), asegurar tambien el PATH del usuario interactivo logueado si es distinto
@@ -110,10 +128,20 @@ Write-Host "`n[PASO 3/4] Comprobando disponibilidad del comando 'winget'..." -Fo
 
 $wingetFound = $false
 try {
-    $targetExe = Join-Path $windowsAppsUser "winget.exe"
-    if (Test-Path $targetExe) {
-        $testOutput = & $targetExe --version 2>$null
-        if ($testOutput) { $wingetFound = $true }
+    if ($physicalDir -and (Test-Path (Join-Path $physicalDir.FullName "winget.exe"))) {
+        $targetPhysicalExe = Join-Path $physicalDir.FullName "winget.exe"
+        $testOutput = & $targetPhysicalExe --version 2>$null
+        if ($testOutput) { 
+            $wingetFound = $true 
+            Write-Host "  -> 'winget' detectado en ruta fisica: $targetPhysicalExe (v$testOutput)" -ForegroundColor Green
+        }
+    }
+    if (-not $wingetFound) {
+        $targetExe = Join-Path $windowsAppsUser "winget.exe"
+        if (Test-Path $targetExe) {
+            $testOutput = & $targetExe --version 2>$null
+            if ($testOutput) { $wingetFound = $true }
+        }
     }
     if (-not $wingetFound) {
         $testCmd = Get-Command "winget" -ErrorAction SilentlyContinue

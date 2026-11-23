@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wingetix Setup</title>
+  <link rel="stylesheet" href="installer.css">
+</head>
+<body>
+  <!-- Window Container -->
+  <div class="installer-window">
+    
+    <!-- Cosmic Background Layers -->
+    <div class="space-background">
+      <div class="stars-layer stars-layer-1"></div>
+      <div class="stars-layer stars-layer-2"></div>
+      <div class="nebula-cloud nebula-cloud-mint"></div>
+      <div class="nebula-cloud nebula-cloud-cyan"></div>
+    </div>
+
+    <!-- Custom Title Bar (Frameless Draggable) -->
+    <header class="installer-titlebar">
+      <div class="titlebar-drag-region">
+        <img src="logo.png" alt="Wingetix" class="titlebar-logo">
+        <span class="titlebar-title">Wingetix</span>
+        <span class="titlebar-badge">v1.2.0 Setup</span>
+      </div>
+      <div class="titlebar-controls">
+        <button id="ctrl-minimize" class="ctrl-btn" title="Minimize">
+          <svg width="12" height="12" viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+        <button id="ctrl-close" class="ctrl-btn ctrl-close" title="Close">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 3L9 9M9 3L3 9" stroke="currentColor" stroke-width="1.5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Screens Container -->
+    <main class="installer-content">
+      
+      <!-- 🌌 PANTALLA 1: Bienvenida Cósmica (Hero Splash) -->
+      <section id="screen-welcome" class="installer-screen active">
+        <div class="splash-hero">
+          <div class="atomic-logo-container">
+            <div class="atomic-aura"></div>
+            <img src="logo.png" alt="Wingetix Logo" class="atomic-logo">
+          </div>
+          
+          <h1 class="splash-title">Wingetix</h1>
+          <p class="splash-tagline" data-i18n="tagline">The Ultimate Visual Control Panel for Windows</p>
+          
+          <div class="specs-pills-row">
+            <span class="spec-pill"><span class="dot"></span> Windows 10 & 11</span>
+            <span class="spec-pill"><span class="dot"></span> 100% Open Source</span>
+            <span class="spec-pill"><span class="dot"></span> Zero Ads & Telemetry</span>
+          </div>
+
+          <div class="splash-action">
+            <button id="btn-start" class="btn-primary-glow">
+              <span data-i18n="btnStart">Start Installation</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⚙️ PANTALLA 2: Opciones con Tarjetas Glassmorphism -->
+      <section id="screen-options" class="installer-screen">
+        <div class="options-header">
+          <div class="options-brand">
+            <img src="logo.png" alt="Wingetix" class="mini-logo">
+            <div>
+              <h2 class="options-title" data-i18n="optionsTitle">Installation Options</h2>
+              <p class="options-subtitle" data-i18n="optionsSubtitle">Customize how Wingetix integrates with your system</p>
+            </div>
+          </div>
+          
+          <!-- Selector de idioma: English active by default -->
+          <div class="lang-selector-segmented">
+            <button type="button" class="lang-btn active" data-lang="en">
+              <svg class="lang-flag-svg" width="18" height="12" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <clipPath id="uk-flag-clip"><rect width="60" height="40" rx="2"/></clipPath>
+                <g clip-path="url(#uk-flag-clip)">
+                  <rect width="60" height="40" fill="#012169"/>
+                  <path d="M0 0 L60 40 M60 0 L0 40" stroke="#ffffff" stroke-width="8"/>
+                  <path d="M0 0 L60 40 M60 0 L0 40" stroke="#c8102e" stroke-width="4"/>
+                  <path d="M30 0 V40 M0 20 H60" stroke="#ffffff" stroke-width="12"/>
+                  <path d="M30 0 V40 M0 20 H60" stroke="#c8102e" stroke-width="7"/>
+                </g>
+              </svg>
+              <span>English</span>
+            </button>
+            <button type="button" class="lang-btn" data-lang="es">
+              <svg class="lang-flag-svg" width="18" height="12" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <clipPath id="es-flag-clip"><rect width="60" height="40" rx="2"/></clipPath>
+                <g clip-path="url(#es-flag-clip)">
+                  <rect width="60" height="40" fill="#c60b1e"/>
+                  <rect y="10" width="60" height="20" fill="#ffc400"/>
+                  <g transform="translate(13, 13)">
+                    <path d="M4 1.5 L6 4 L8 1.5 L10 4 L12 1.5 L11 5 L5 5 Z" fill="#c60b1e"/>
+                    <circle cx="8" cy="1" r="1" fill="#ffc400"/>
+                    <path d="M5 5 H11 V10 C11 12.5 8 14 8 14 C8 14 5 12.5 5 10 Z" fill="#c60b1e" stroke="#fff" stroke-width="0.6"/>
+                    <path d="M8 5 V13.5 M5 9 H11" stroke="#ffc400" stroke-width="0.6"/>
+                    <rect x="2" y="5.5" width="1.2" height="7.5" fill="#f8fafc"/>
+                    <circle cx="2.6" cy="4.8" r="0.8" fill="#ffc400"/>
+                    <rect x="12.8" y="5.5" width="1.2" height="7.5" fill="#f8fafc"/>
+                    <circle cx="13.4" cy="4.8" r="0.8" fill="#ffc400"/>
+                  </g>
+                </g>
+              </svg>
+              <span>Español</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card options-card">
+          <!-- Opción 1: Acceso Directo -->
+          <label class="option-row">
+            <div class="option-info">
+              <span class="option-label" data-i18n="optDesktopLabel">Create desktop shortcut</span>
+              <span class="option-desc" data-i18n="optDesktopDesc">Create a shortcut on your desktop to open Wingetix quickly.</span>
+            </div>
+            <div class="switch-wrapper">
+              <input type="checkbox" id="chk-desktop" class="glass-switch" checked>
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+
+          <div class="option-divider"></div>
+
+          <!-- Opción 2: Motor WinGet -->
+          <label class="option-row">
+            <div class="option-info">
+              <div class="label-with-badge">
+                <span class="option-label" data-i18n="optWingetLabel">Verify and enable official WinGet engine</span>
+                <span class="badge-recommended" data-i18n="recommendedBadge">Recommended</span>
+              </div>
+              <span class="option-desc" data-i18n="optWingetDesc">Registers DesktopAppInstaller, fixes execution aliases, and ensures full Windows 10 & 11 support.</span>
+            </div>
+            <div class="switch-wrapper">
+              <input type="checkbox" id="chk-winget" class="glass-switch" checked>
+              <span class="switch-slider"></span>
+            </div>
+          </label>
+
+          <div class="option-divider"></div>
+
+          <!-- Opción 3: Ruta de instalación -->
+          <div class="path-selection-row">
+            <div class="path-info">
+              <span class="option-label" data-i18n="optPathLabel">Installation directory</span>
+              <div class="path-input-group">
+                <input type="text" id="input-install-path" class="path-input" readonly>
+                <button type="button" id="btn-browse-path" class="btn-browse" data-i18n="btnBrowse">Browse...</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="options-actions-bar">
+          <button type="button" id="btn-back-to-splash" class="btn-ghost">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span data-i18n="btnBack">Back</span>
+          </button>
+          <button type="button" id="btn-install-now" class="btn-primary-glow">
+            <span data-i18n="btnInstallNow">Install Now</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ⚡ PANTALLA 3: Instalación con Barra de Progreso Neón -->
+      <section id="screen-installing" class="installer-screen">
+        <div class="installing-layout">
+          <div class="pulse-loader-ring">
+            <div class="ring-core">
+              <img src="logo.png" alt="Installing..." class="ring-logo">
+            </div>
+          </div>
+
+          <h2 class="installing-title" data-i18n="installingTitle">Installing Wingetix...</h2>
+          <p id="install-status-msg" class="install-status-msg" data-i18n="statusStarting">Preparing installation environment...</p>
+
+          <div class="progress-container">
+            <div class="progress-track">
+              <div id="progress-bar-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-stats">
+              <span id="progress-step-text" class="progress-step-text">0%</span>
+              <span class="progress-speed" data-i18n="statusOptimized">Optimized for Windows</span>
+            </div>
+          </div>
+
+          <div class="install-milestones">
+            <div id="mile-extract" class="milestone-badge pending">
+              <span class="milestone-dot"></span>
+              <span data-i18n="mileExtract">System files</span>
+            </div>
+            <div id="mile-winget" class="milestone-badge pending">
+              <span class="milestone-dot"></span>
+              <span data-i18n="mileWinget">WinGet engine</span>
+            </div>
+            <div id="mile-shortcuts" class="milestone-badge pending">
+              <span class="milestone-dot"></span>
+              <span data-i18n="mileShortcuts">Shortcuts</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 🎉 PANTALLA 4: Finalización -->
+      <section id="screen-finished" class="installer-screen">
+        <div class="finished-layout">
+          <div class="success-icon-wrapper">
+            <div class="success-aura"></div>
+            <div class="success-circle">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+          </div>
+
+          <h2 class="finished-title" data-i18n="finishedTitle">Installation Successfully Completed!</h2>
+          <p class="finished-desc" data-i18n="finishedDesc">Wingetix is ready to manage, update, and clean your software with a modern, high-speed interface.</p>
+
+          <div class="finished-action">
+            <button type="button" id="btn-launch-app" class="btn-launch-glow">
+              <span data-i18n="btnLaunch">Launch Wingetix</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="installer.js"></script>
+</body>
+</html>

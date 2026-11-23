@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Notification } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
@@ -6,19 +6,220 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
+// Set Windows AppUserModelId for native Windows 10/11 OS Toast Notifications & Taskbar grouping
+try {
+  app.setAppUserModelId('com.joselyky.wingetix');
+} catch (_) {}
+
 // ─── Globals ──────────────────────────────────────────────────────────────────
 let mainWindow;
 const isDev = process.argv.includes('--dev');
 
-// ─── Build Environment ────────────────────────────────────────────────────────
-// winget lives in WindowsApps as an App Execution Alias.
-// These aliases ONLY work called by name — never by full path.
-// We inject all known WindowsApps directories so cmd can resolve 'winget'.
+// ─── Zero-Footprint USB Portable Mode & .\data\settings.json Engine ───────────
+// When executed from a USB flash drive or standalone portable directory (outside
+// Program Files, or when .\data / portable.txt / --portable is present), Wingetix
+// stores all configuration in .\data\settings.json, software packs in .\data\packs,
+// and redirects Electron's Chromium profile to .\data\profile so zero footprint
+// is left in %APPDATA%\Wingetix on the host computer.
+function resolvePortableBaseDir() {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) {
+    return process.env.PORTABLE_EXECUTABLE_DIR;
+  }
+  const exeName = path.basename(process.execPath || '').toLowerCase();
+  if (exeName && exeName !== 'electron.exe') {
+    return path.dirname(process.execPath);
+  }
+  return __dirname;
+}
+
+const portableBaseDir = resolvePortableBaseDir();
+const portableDataDir = path.join(portableBaseDir, 'data');
+
+function detectPortableMode() {
+  try {
+    if (process.argv.includes('--portable') || process.env.PORTABLE_EXECUTABLE_DIR) {
+      return true;
+    }
+    if (
+      fs.existsSync(path.join(portableBaseDir, 'portable.txt')) ||
+      fs.existsSync(path.join(portableBaseDir, '.portable')) ||
+      fs.existsSync(path.join(portableDataDir, 'settings.json')) ||
+      fs.existsSync(portableDataDir)
+    ) {
+      return true;
+    }
+
+    const normBase = portableBaseDir.toLowerCase();
+    const progFiles = (process.env.ProgramFiles || 'C:\\Program Files').toLowerCase();
+    const progFilesX86 = (process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)').toLowerCase();
+    const localPrograms = path.join(process.env.LOCALAPPDATA || '', 'Programs').toLowerCase();
+
+    const isInsideStandardInstallDir =
+      normBase.startsWith(progFiles) ||
+      normBase.startsWith(progFilesX86) ||
+      (localPrograms && normBase.startsWith(localPrograms)) ||
+      fs.existsSync(path.join(portableBaseDir, 'unins000.exe'));
+
+    if (!isInsideStandardInstallDir) {
+      // Check directory writability for standalone/USB execution
+      fs.accessSync(portableBaseDir, fs.constants.W_OK);
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+const isPortableMode = detectPortableMode();
+let activeDataDir = '';
+let settingsFilePath = '';
+
+if (isPortableMode) {
+  try {
+    const profileDir = path.join(portableDataDir, 'profile');
+    const packsDir = path.join(portableDataDir, 'packs');
+    fs.mkdirSync(profileDir, { recursive: true });
+    fs.mkdirSync(packsDir, { recursive: true });
+    app.setPath('userData', profileDir);
+    app.setPath('sessionData', path.join(portableDataDir, 'session'));
+    activeDataDir = portableDataDir;
+    settingsFilePath = path.join(portableDataDir, 'settings.json');
+  } catch (err) {
+    console.warn('[PortableMode] Fallback to default userData:', err.message);
+    activeDataDir = app.getPath('userData');
+    settingsFilePath = path.join(activeDataDir, 'settings.json');
+  }
+} else {
+  activeDataDir = app.getPath('userData');
+  settingsFilePath = path.join(activeDataDir, 'settings.json');
+}
+
+const DEFAULT_APP_SETTINGS = {
+  version: '1.2.0',
+  portableMode: isPortableMode,
+  language: 'en',
+  userSelectedLanguage: false,
+  defaultSortPackages: 'name-asc',
+  defaultSortInstalled: 'name-asc',
+  createRestorePointBeforeUninstall: false,
+  platformShieldWhitelist: []
+};
+
+function loadAppSettings() {
+  try {
+    if (fs.existsSync(settingsFilePath)) {
+      const raw = fs.readFileSync(settingsFilePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      return { ...DEFAULT_APP_SETTINGS, ...parsed, portableMode: isPortableMode };
+    } else if (isPortableMode) {
+      const initial = { ...DEFAULT_APP_SETTINGS, lastUpdated: new Date().toISOString() };
+      fs.mkdirSync(path.dirname(settingsFilePath), { recursive: true });
+      fs.writeFileSync(settingsFilePath, JSON.stringify(initial, null, 2), 'utf8');
+      return initial;
+    }
+  } catch (err) {
+    console.warn('[loadAppSettings] Failed to read settings.json:', err.message);
+  }
+  return { ...DEFAULT_APP_SETTINGS };
+}
+
+function saveAppSettings(partial = {}) {
+  try {
+    const current = loadAppSettings();
+    const updated = {
+      ...current,
+      ...partial,
+      portableMode: isPortableMode,
+      lastUpdated: new Date().toISOString()
+    };
+    fs.mkdirSync(path.dirname(settingsFilePath), { recursive: true });
+    fs.writeFileSync(settingsFilePath, JSON.stringify(updated, null, 2), 'utf8');
+    return updated;
+  } catch (err) {
+    console.error('[saveAppSettings] Failed to write settings.json:', err.message);
+    return null;
+  }
+}
+
+// Ensure .\data\settings.json exists immediately when running in Portable Mode
+if (isPortableMode) {
+  loadAppSettings();
+}
+
+// ─── Windows 10 & 11 WinGet Resolution Engine ────────────────────────────────
+// In Windows 10 elevated processes (UAC), App Execution Aliases in %LOCALAPPDATA%\Microsoft\WindowsApps
+// fail with ENOENT / Access Denied. We resolve the physical binary in C:\Program Files\WindowsApps
+// and inject its directory directly into PATH, ensuring 100% reliable execution.
+let cachedWingetBinary = null;
+
+function resolveWingetBinary() {
+  if (cachedWingetBinary && fs.existsSync(cachedWingetBinary)) {
+    return cachedWingetBinary;
+  }
+
+  // 1. Direct physical WindowsApps DesktopAppInstaller directory (bypasses Windows 10 UAC alias bug)
+  try {
+    const winAppsBase = 'C:\\Program Files\\WindowsApps';
+    if (fs.existsSync(winAppsBase)) {
+      const dirs = fs.readdirSync(winAppsBase);
+      const matches = dirs.filter(d => 
+        d.startsWith('Microsoft.DesktopAppInstaller_') && 
+        (d.includes('_x64__') || d.includes('_neutral__') || d.includes('_arm64__'))
+      ).sort().reverse();
+
+      for (const m of matches) {
+        const candidate = path.join(winAppsBase, m, 'winget.exe');
+        if (fs.existsSync(candidate)) {
+          cachedWingetBinary = candidate;
+          return candidate;
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. Current user AppData WindowsApps execution alias
+  const userAlias = path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WindowsApps', 'winget.exe');
+  if (fs.existsSync(userAlias)) {
+    cachedWingetBinary = userAlias;
+    return userAlias;
+  }
+
+  // 3. Other users AppData execution aliases
+  try {
+    const users = fs.readdirSync('C:\\Users');
+    for (const u of users) {
+      const p = `C:\\Users\\${u}\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe`;
+      if (fs.existsSync(p)) {
+        cachedWingetBinary = p;
+        return p;
+      }
+    }
+  } catch (_) {}
+
+  // 4. Fallback to command name 'winget.exe' (relying on PATH)
+  return 'winget.exe';
+}
+
 function buildEnv() {
   const cur = process.env.PATH || '';
-  const dirs = [
-    path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WindowsApps'),
-  ];
+  const dirs = [];
+
+  // Inject physical WindowsApps directories first so elevated processes resolve the real binary
+  try {
+    const winAppsBase = 'C:\\Program Files\\WindowsApps';
+    if (fs.existsSync(winAppsBase)) {
+      const allDirs = fs.readdirSync(winAppsBase);
+      const matches = allDirs.filter(d => 
+        d.startsWith('Microsoft.DesktopAppInstaller_') && 
+        (d.includes('_x64__') || d.includes('_neutral__') || d.includes('_arm64__'))
+      ).sort().reverse();
+      for (const m of matches) {
+        dirs.push(path.join(winAppsBase, m));
+      }
+    }
+  } catch (_) {}
+
+  dirs.push(path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'WindowsApps'));
+
   try {
     fs.readdirSync('C:\\Users').forEach(u =>
       dirs.push(`C:\\Users\\${u}\\AppData\\Local\\Microsoft\\WindowsApps`)
@@ -27,6 +228,20 @@ function buildEnv() {
 
   const toAdd = dirs.filter(d => !cur.includes(d)).join(';');
   return { ...process.env, PATH: toAdd ? `${toAdd};${cur}` : cur };
+}
+
+function spawnWinget(args, customOptions = {}) {
+  const bin = resolveWingetBinary();
+  const env = customOptions.env || buildEnv();
+  const options = {
+    env,
+    shell: true,
+    windowsHide: true,
+    ...customOptions
+  };
+
+  const executable = bin.includes(' ') ? `"${bin}"` : bin;
+  return spawn(executable, args, options);
 }
 
 // ─── Resolve Physical Script Path ─────────────────────────────────────────────
@@ -90,14 +305,279 @@ function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-app.whenReady().then(createWindow);
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+// ─── Visual Glassmorphism Installer Window ──────────────────────────────────
+let isInstallerMode = process.argv.includes('--installer') || process.argv.includes('--setup');
+let installerWindow = null;
 
-// ─── Window Controls ──────────────────────────────────────────────────────────
+function createInstallerWindow() {
+  installerWindow = new BrowserWindow({
+    width: 760,
+    height: 540,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    maximizable: false,
+    center: true,
+    icon: path.join(__dirname, 'icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+    show: false,
+  });
+
+  installerWindow.loadFile('installer.html');
+  installerWindow.once('ready-to-show', () => {
+    installerWindow.show();
+  });
+  installerWindow.on('closed', () => {
+    installerWindow = null;
+  });
+}
+
+app.whenReady().then(() => {
+  if (isInstallerMode) {
+    createInstallerWindow();
+  } else {
+    createWindow();
+  }
+});
+
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    if (isInstallerMode) createInstallerWindow();
+    else createWindow();
+  }
+});
+
+// ─── Window Controls, Taskbar Progress Bar & Native OS Notifications ──────────
+function setTaskbarProgress(value, mode = 'normal') {
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (value === null || value === undefined || value < 0) {
+      mainWindow.setProgressBar(-1);
+      return;
+    }
+    if (mode === 'indeterminate') {
+      mainWindow.setProgressBar(2, { mode: 'indeterminate' });
+      return;
+    }
+    const num = Number(value);
+    if (isNaN(num) || num < 0) {
+      mainWindow.setProgressBar(-1);
+      return;
+    }
+    const fraction = num > 1 ? Math.min(1, Math.max(0, num / 100)) : Math.min(1, Math.max(0, num));
+    mainWindow.setProgressBar(fraction, { mode: mode || 'normal' });
+  } catch (_) {}
+}
+
+function showNativeOsNotification({ title, body, silent = false } = {}) {
+  try {
+    if (!Notification || !Notification.isSupported()) return false;
+    const iconPath = path.join(__dirname, 'icon.png');
+    const notif = new Notification({
+      title: title || 'Wingetix',
+      body: body || '',
+      icon: fs.existsSync(iconPath) ? iconPath : undefined,
+      silent: !!silent
+    });
+    notif.on('click', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+    notif.show();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 ipcMain.on('window:minimize', () => mainWindow?.minimize());
 ipcMain.on('window:maximize', () => mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow?.maximize());
 ipcMain.on('window:close',    () => mainWindow?.close());
+ipcMain.on('window:set-progress', (_e, data = {}) => {
+  setTaskbarProgress(data.value, data.mode);
+});
+ipcMain.on('app:notify', (_e, payload = {}) => {
+  showNativeOsNotification(payload);
+});
+
+// ─── Installer Window Controls & Logic ────────────────────────────────────────
+ipcMain.on('installer:minimize', () => {
+  if (installerWindow && !installerWindow.isDestroyed()) {
+    installerWindow.minimize();
+  }
+});
+
+ipcMain.on('installer:close', () => {
+  app.quit();
+});
+
+ipcMain.handle('installer:get-info', async () => {
+  const defaultDir = process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Wingetix') : 'C:\\Program Files\\Wingetix';
+  return {
+    defaultPath: defaultDir,
+    systemLang: 'en',
+    isAdmin: true
+  };
+});
+
+ipcMain.handle('installer:select-path', async () => {
+  if (!installerWindow || installerWindow.isDestroyed()) return null;
+  const res = await dialog.showOpenDialog(installerWindow, {
+    title: 'Select installation directory',
+    properties: ['openDirectory', 'createDirectory']
+  });
+  if (!res.canceled && res.filePaths.length > 0) {
+    return res.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.on('installer:run-install', async (event, config) => {
+  const targetDir = config.targetPath || path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Wingetix');
+  const lang = config.lang || 'en';
+  const createDesktop = !!config.createDesktopShortcut;
+  const enableWinget = !!config.enableWinget;
+
+  function sendProgress(percent, message, milestone) {
+    if (installerWindow && !installerWindow.isDestroyed()) {
+      installerWindow.webContents.send('installer:progress', { percent, message, milestone });
+    }
+  }
+
+  try {
+    sendProgress(10, lang === 'es' ? 'Preparando entorno de instalación...' : 'Preparing installation environment...');
+    
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    sendProgress(25, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
+    
+    // Defer a slight tick for visual animation feel
+    await new Promise(r => setTimeout(r, 450));
+
+    sendProgress(50, lang === 'es' ? 'Archivos del sistema verificados (50%)' : 'System files verified (50%)', 'extract');
+
+    // WinGet Registration / PATH fix if requested
+    if (enableWinget) {
+      sendProgress(65, lang === 'es' ? 'Verificando y registrando motor WinGet... (70%)' : 'Verifying and registering WinGet engine... (70%)', 'winget');
+      const scriptPath = getScriptPath('enable-winget.ps1');
+      if (fs.existsSync(scriptPath)) {
+        await new Promise((resolve) => {
+          const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', scriptPath], {
+            windowsHide: true
+          });
+          ps.on('close', () => resolve());
+          ps.on('error', () => resolve());
+          setTimeout(resolve, 8000);
+        });
+      }
+    }
+
+    sendProgress(80, lang === 'es' ? 'Creando accesos directos y registrando... (90%)' : 'Creating shortcuts and registering... (90%)', 'shortcuts');
+
+    const targetExe = path.join(targetDir, 'Wingetix.exe');
+    const exePathForShortcut = fs.existsSync(targetExe) ? targetExe : process.execPath;
+
+    let shortcutPsScript = '';
+    if (createDesktop) {
+      shortcutPsScript += `
+        $desktop = [Environment]::GetFolderPath('Desktop')
+        $s1 = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\\Wingetix.lnk")
+        $s1.TargetPath = "${exePathForShortcut.replace(/\\/g, '\\\\')}"
+        $s1.WorkingDirectory = "${targetDir.replace(/\\/g, '\\\\')}"
+        $s1.Description = "Wingetix - Visual Control Panel"
+        $s1.Save()
+      `;
+    }
+
+    shortcutPsScript += `
+      $startMenu = [Environment]::GetFolderPath('CommonPrograms')
+      if (-not (Test-Path $startMenu)) { $startMenu = [Environment]::GetFolderPath('Programs') }
+      $s2 = (New-Object -COM WScript.Shell).CreateShortcut("$startMenu\\Wingetix.lnk")
+      $s2.TargetPath = "${exePathForShortcut.replace(/\\/g, '\\\\')}"
+      $s2.WorkingDirectory = "${targetDir.replace(/\\/g, '\\\\')}"
+      $s2.Description = "Wingetix - Visual Control Panel"
+      $s2.Save()
+    `;
+
+    try {
+      await new Promise((resolve) => {
+        const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', shortcutPsScript], {
+          windowsHide: true
+        });
+        ps.on('close', () => resolve());
+        ps.on('error', () => resolve());
+        setTimeout(resolve, 4000);
+      });
+    } catch (_) {}
+
+    // Registry Uninstall entry
+    try {
+      const regCmd = `
+        $regPath = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wingetix"
+        if (!(Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+        Set-ItemProperty -Path $regPath -Name "DisplayName" -Value "Wingetix" -Force
+        Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value "1.2.0" -Force
+        Set-ItemProperty -Path $regPath -Name "Publisher" -Value "Wingetix" -Force
+        Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value "${targetDir.replace(/\\/g, '\\\\')}" -Force
+        Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "${exePathForShortcut.replace(/\\/g, '\\\\')},0" -Force
+        Set-ItemProperty -Path $regPath -Name "UninstallString" -Value "\\"${exePathForShortcut.replace(/\\/g, '\\\\')}\\" --uninstall" -Force
+      `;
+      const psReg = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', regCmd], { windowsHide: true });
+      psReg.on('close', () => {});
+    } catch (_) {}
+
+    // Save language
+    try {
+      const langFilePath = path.join(targetDir, 'resources', 'installed_lang.txt');
+      const langDir = path.dirname(langFilePath);
+      if (!fs.existsSync(langDir)) fs.mkdirSync(langDir, { recursive: true });
+      fs.writeFileSync(langFilePath, lang, 'utf8');
+    } catch (_) {}
+
+    sendProgress(100, lang === 'es' ? '¡Instalación completada con éxito! (100%)' : 'Installation completed successfully! (100%)', 'shortcuts');
+
+    setTimeout(() => {
+      if (installerWindow && !installerWindow.isDestroyed()) {
+        installerWindow.webContents.send('installer:done', {
+          success: true,
+          targetExe: exePathForShortcut,
+          lang
+        });
+      }
+    }, 400);
+
+  } catch (err) {
+    console.error('[Installer] Installation error:', err);
+    sendProgress(100, 'Error: ' + err.message);
+  }
+});
+
+ipcMain.on('installer:launch-app', () => {
+  const targetDir = process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Wingetix') : 'C:\\Program Files\\Wingetix';
+  const targetExe = path.join(targetDir, 'Wingetix.exe');
+  const exeToRun = fs.existsSync(targetExe) ? targetExe : process.execPath;
+  
+  try {
+    spawn(exeToRun, [], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+  } catch (err) {
+    console.error('[Installer] Failed to launch Wingetix:', err);
+  }
+  
+  app.quit();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WINGET OUTPUT PARSER
@@ -268,9 +748,7 @@ async function attachIconsToPackages(packages) {
 ipcMain.handle('winget:list-upgrades', async () => {
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawn('cmd', ['/c', 'winget upgrade --accept-source-agreements'], {
-      env, shell: false, windowsHide: true,
-    });
+    const proc = spawnWinget(['upgrade', '--accept-source-agreements'], { env });
 
     const chunks = [], errChunks = [];
     proc.stdout.on('data', d => chunks.push(d));
@@ -279,6 +757,22 @@ ipcMain.handle('winget:list-upgrades', async () => {
     proc.on('close', async code => {
       const raw    = Buffer.concat(chunks).toString('utf8');
       const stderr = Buffer.concat(errChunks).toString('utf8');
+
+      const isMissing = code === 9009 || 
+        stderr.toLowerCase().includes('not recognized') || 
+        stderr.toLowerCase().includes('no se reconoce') ||
+        raw.toLowerCase().includes('not recognized') ||
+        raw.toLowerCase().includes('no se reconoce');
+
+      if (isMissing) {
+        return resolve({
+          success: false,
+          wingetMissing: true,
+          error: 'WinGet engine is not installed or enabled in this Windows edition.',
+          raw, stderr, code
+        });
+      }
+
       try {
         let packages = parseWingetOutput(raw);
         packages = await attachIconsToPackages(packages);
@@ -290,9 +784,48 @@ ipcMain.handle('winget:list-upgrades', async () => {
 
     proc.on('error', err => resolve({
       success: false,
+      wingetMissing: true,
       error: `No se pudo ejecutar winget: ${err.message}\n\nInstala "App Installer" desde la Microsoft Store o activa WinGet en la terminal.`,
       raw: '', stderr: '', code: -1,
     }));
+  });
+});
+
+ipcMain.handle('winget:check-status', async () => {
+  const bin = resolveWingetBinary();
+  const physicalFound = fs.existsSync(bin);
+  return new Promise((resolve) => {
+    try {
+      const proc = spawnWinget(['--version']);
+      let out = '';
+      proc.stdout?.on('data', d => { out += d.toString('utf8'); });
+      proc.on('close', code => {
+        resolve({
+          available: code === 0,
+          version: out.trim() || null,
+          path: bin,
+          physicalFound
+        });
+      });
+      proc.on('error', () => {
+        resolve({
+          available: false,
+          version: null,
+          path: bin,
+          physicalFound
+        });
+      });
+      setTimeout(() => {
+        resolve({
+          available: physicalFound,
+          version: null,
+          path: bin,
+          physicalFound
+        });
+      }, 3500);
+    } catch (_) {
+      resolve({ available: physicalFound, version: null, path: bin, physicalFound });
+    }
   });
 });
 
@@ -344,8 +877,8 @@ ipcMain.handle('winget:export-packages', async () => {
 
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawn('winget', ['export', '-o', filePath, '--include-versions', '--accept-source-agreements'], {
-      env, shell: false, windowsHide: true
+    const proc = spawnWinget(['export', '-o', `"${filePath}"`, '--include-versions', '--accept-source-agreements'], {
+      env
     });
 
     let stderr = '';
@@ -372,8 +905,8 @@ ipcMain.handle('winget:import-packages', async () => {
   const filePath = filePaths[0];
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawn('winget', ['import', '--import-file', filePath, '--accept-package-agreements', '--accept-source-agreements'], {
-      env, shell: false, windowsHide: true
+    const proc = spawnWinget(['import', '--import-file', `"${filePath}"`, '--accept-package-agreements', '--accept-source-agreements'], {
+      env
     });
 
     let stdout = '', stderr = '';
@@ -397,9 +930,386 @@ ipcMain.handle('winget:import-packages', async () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SOFTWARE PACKS & BUNDLE STUDIO ENGINE (1-Click Deployment)
+// ═══════════════════════════════════════════════════════════════════════════════
+let activeBundleProc = null;
+let isBundleCancelled = false;
+
+ipcMain.handle('bundles:save-pack', async (_e, packData) => {
+  if (!mainWindow) return { success: false, error: 'Window not available' };
+
+  let defaultDir = '';
+  const portableDataPacks = path.join(activeDataDir, 'packs');
+  if (isPortableMode) {
+    try { fs.mkdirSync(portableDataPacks, { recursive: true }); } catch (_) {}
+  }
+  if (fs.existsSync(portableDataPacks)) {
+    defaultDir = portableDataPacks;
+  }
+
+  const cleanName = (packData?.name || 'My-Software-Pack').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '-');
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Create Software Pack',
+    defaultPath: path.join(defaultDir, `${cleanName}.wingetix`),
+    filters: [
+      { name: 'Wingetix Software Pack (*.wingetix)', extensions: ['wingetix'] },
+      { name: '1-Click Batch Installer Script (*.bat)', extensions: ['bat'] },
+      { name: 'JSON Package Manifest (*.json)', extensions: ['json'] }
+    ]
+  });
+
+  if (canceled || !filePath) return { success: false, canceled: true };
+
+  try {
+    if (filePath.toLowerCase().endsWith('.bat')) {
+      let bat = `@echo off\r\n`;
+      bat += `title Installing ${packData?.name || 'Software Pack'}\r\n`;
+      bat += `echo ======================================================\r\n`;
+      bat += `echo   Wingetix - 1-Click Software Pack Installer\r\n`;
+      bat += `echo   Pack: ${packData?.name || 'Software Pack'}\r\n`;
+      bat += `echo ======================================================\r\n\r\n`;
+      if (Array.isArray(packData?.packages)) {
+        packData.packages.forEach((pkg, idx) => {
+          const id = pkg.id;
+          const name = pkg.name || id;
+          bat += `echo [${idx + 1}/${packData.packages.length}] Installing ${name} (${id})...\r\n`;
+          bat += `winget install --id "${id}" --exact --accept-source-agreements --accept-package-agreements\r\n\r\n`;
+        });
+      }
+      bat += `echo ======================================================\r\n`;
+      bat += `echo Installation completed!\r\n`;
+      bat += `pause\r\n`;
+      fs.writeFileSync(filePath, bat, 'utf8');
+    } else {
+      packData.format = 'wingetix-pack';
+      packData.version = '1.0';
+      const jsonContent = JSON.stringify(packData, null, 2);
+      fs.writeFileSync(filePath, jsonContent, 'utf8');
+    }
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('bundles:load-pack', async () => {
+  if (!mainWindow) return { success: false, error: 'Window not available' };
+
+  let defaultDir = '';
+  const portableDataPacks = path.join(activeDataDir, 'packs');
+  if (isPortableMode) {
+    try { fs.mkdirSync(portableDataPacks, { recursive: true }); } catch (_) {}
+  }
+  if (fs.existsSync(portableDataPacks)) {
+    defaultDir = portableDataPacks;
+  }
+
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: 'Load Software Pack',
+    defaultPath: defaultDir || undefined,
+    properties: ['openFile'],
+    filters: [
+      { name: 'Software Packs (*.wingetix, *.json)', extensions: ['wingetix', 'json'] }
+    ]
+  });
+
+  if (canceled || !filePaths?.length) return { success: false, canceled: true };
+
+  const filePath = filePaths[0];
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw);
+
+    let packages = [];
+    let packName = path.basename(filePath, path.extname(filePath));
+    let packDescription = '';
+
+    // Wingetix Pack format or any pack containing packages array
+    if (Array.isArray(parsed.packages)) {
+      packages = parsed.packages;
+      packName = parsed.name || packName;
+      packDescription = parsed.description || '';
+    }
+    // Official WinGet export schema
+    else if (Array.isArray(parsed.Sources)) {
+      for (const src of parsed.Sources) {
+        if (Array.isArray(src.Packages)) {
+          for (const pkg of src.Packages) {
+            const id = pkg.PackageIdentifier || pkg.Id || '';
+            if (id) {
+              packages.push({
+                id,
+                name: id,
+                version: pkg.Version || 'latest',
+                source: src.SourceDetails?.Name || 'winget'
+              });
+            }
+          }
+        }
+      }
+    }
+    // Generic array format
+    else if (Array.isArray(parsed)) {
+      packages = parsed.map(item => {
+        if (typeof item === 'string') return { id: item, name: item, version: 'latest', source: 'winget' };
+        return {
+          id: item.id || item.PackageIdentifier || '',
+          name: item.name || item.id || '',
+          version: item.version || 'latest',
+          source: item.source || 'winget'
+        };
+      }).filter(p => !!p.id);
+    }
+
+    const packObj = {
+      name: packName,
+      description: packDescription,
+      packages
+    };
+
+    return {
+      success: true,
+      filePath,
+      pack: packObj,
+      name: packName,
+      description: packDescription,
+      packages
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.on('bundles:cancel-install', () => {
+  isBundleCancelled = true;
+  if (activeBundleProc) {
+    try { activeBundleProc.kill(); } catch (_) {}
+    activeBundleProc = null;
+  }
+});
+
+ipcMain.on('bundles:install-pack', async (event, packages) => {
+  if (!Array.isArray(packages) || packages.length === 0) {
+    event.sender.send('bundles:install-done', { success: false, error: 'No packages provided' });
+    return;
+  }
+
+  isBundleCancelled = false;
+  activeBundleProc = null;
+  const results = [];
+  const total = packages.length;
+
+  for (let i = 0; i < total; i++) {
+    if (isBundleCancelled) {
+      event.sender.send('bundles:install-progress', {
+        index: i,
+        total,
+        status: 'cancelled',
+        message: 'Pack installation cancelled by user.'
+      });
+      break;
+    }
+
+    const pkg = packages[i];
+    const pkgId = pkg.id;
+    const pkgName = pkg.name || pkgId;
+    const pkgSource = pkg.source || 'winget';
+
+    event.sender.send('bundles:install-progress', {
+      index: i + 1,
+      total,
+      pkgId,
+      pkgName,
+      status: 'installing',
+      percent: Math.round((i / total) * 100),
+      message: `Installing ${pkgName} (${i + 1} of ${total})...`
+    });
+
+    const runSingleBundleInstall = (args) => new Promise((resolve) => {
+      const proc = spawnWinget(args);
+      activeBundleProc = proc;
+
+      let stdout = '', stderr = '';
+      proc.stdout?.on('data', d => {
+        const text = d.toString('utf8');
+        stdout += text;
+        event.sender.send('winget:log', { type: 'output', text });
+
+        if (isBundleCancelled) return;
+
+        // Parse download MB / GB and percentage
+        const mbMatch = text.match(/(\d+(?:\.\d+)?)\s*(MB|KB|GB)\s*[\/|de]\s*(\d+(?:\.\d+)?)\s*(MB|KB|GB)/i);
+        if (mbMatch) {
+          const cur = parseFloat(mbMatch[1]);
+          const unit1 = mbMatch[2].toUpperCase();
+          const tot = parseFloat(mbMatch[3]);
+          const unit2 = mbMatch[4].toUpperCase();
+          const curMB = unit1 === 'GB' ? cur * 1024 : (unit1 === 'KB' ? cur / 1024 : cur);
+          const totMB = unit2 === 'GB' ? tot * 1024 : (unit2 === 'KB' ? tot / 1024 : tot);
+          if (totMB > 0) {
+            const subPct = Math.min(99, Math.round((curMB / totMB) * 100));
+            const overallPct = Math.min(99, Math.round(((i + (subPct / 100)) / total) * 100));
+            event.sender.send('bundles:install-progress', {
+              index: i + 1,
+              current: i + 1,
+              total,
+              pkgId,
+              pkgName,
+              status: 'downloading',
+              percent: overallPct,
+              message: `Downloading ${pkgName}: ${curMB.toFixed(1)} MB / ${totMB.toFixed(1)} MB (${subPct}%)`
+            });
+          }
+        } else {
+          const tLower = text.toLowerCase();
+          if (tLower.includes('iniciando la instalaci') || tLower.includes('starting package install')) {
+            const overallPct = Math.min(99, Math.round(((i + 0.85) / total) * 100));
+            event.sender.send('bundles:install-progress', {
+              index: i + 1,
+              current: i + 1,
+              total,
+              pkgId,
+              pkgName,
+              status: 'installing',
+              percent: overallPct,
+              message: `Installing ${pkgName}...`
+            });
+          } else if (tLower.includes('hash') && (tLower.includes('comprob') || tLower.includes('verif') || tLower.includes('success'))) {
+            const overallPct = Math.min(99, Math.round(((i + 0.75) / total) * 100));
+            event.sender.send('bundles:install-progress', {
+              index: i + 1,
+              current: i + 1,
+              total,
+              pkgId,
+              pkgName,
+              status: 'verifying',
+              percent: overallPct,
+              message: `Verifying ${pkgName}...`
+            });
+          }
+        }
+      });
+      proc.stderr?.on('data', d => {
+        const text = d.toString('utf8');
+        stderr += text;
+        event.sender.send('winget:log', { type: 'warning', text });
+      });
+
+      proc.on('close', code => {
+        activeBundleProc = null;
+        const outLower = (stdout + ' ' + stderr).toLowerCase();
+        let isSuccess = code === 0 ||
+                        code === 3010 ||
+                        code === -1978236883 ||
+                        code === 2316632109 ||
+                        code === -1978335189 ||
+                        code === 2316632107;
+        const isAlreadyInstalled = code === 2316632109 ||
+                                   code === -1978236883 ||
+                                   code === -1978335189 ||
+                                   code === 2316632107 ||
+                                   outLower.includes('ya instalado') ||
+                                   outLower.includes('already installed') ||
+                                   outLower.includes('no se ha encontrado ninguna actualización') ||
+                                   outLower.includes('no newer package versions');
+
+        if (isAlreadyInstalled ||
+            outLower.includes('correctamente') ||
+            outLower.includes('successfully installed') ||
+            outLower.includes('completada con éxito')) {
+          isSuccess = true;
+        }
+
+        resolve({
+          pkgId,
+          pkgName,
+          code,
+          success: isSuccess,
+          alreadyInstalled: isAlreadyInstalled,
+          stdout,
+          stderr
+        });
+      });
+
+      proc.on('error', err => {
+        activeBundleProc = null;
+        resolve({
+          pkgId,
+          pkgName,
+          code: -1,
+          success: false,
+          error: err.message,
+          stdout,
+          stderr
+        });
+      });
+    });
+
+    const isNamespacedId = pkgId.includes('.') && !pkgId.includes(' ') && !pkgId.startsWith('{');
+    let installArgs = [];
+    if (isNamespacedId) {
+      installArgs = [
+        'install',
+        '--id', pkgId,
+        '--exact',
+        '--source', 'winget',
+        '--force',
+        '--accept-package-agreements',
+        '--accept-source-agreements',
+        '--disable-interactivity'
+      ];
+    } else {
+      installArgs = [
+        'install',
+        pkgName || pkgId,
+        '--source', 'winget',
+        '--force',
+        '--accept-package-agreements',
+        '--accept-source-agreements',
+        '--disable-interactivity'
+      ];
+    }
+
+    let outcome = await runSingleBundleInstall(installArgs);
+
+    // If first attempt failed and we used --source winget, fallback without source filter
+    if (!outcome.success && !isBundleCancelled) {
+      const fallbackQuery = pkgName || pkgId;
+      event.sender.send('winget:log', { type: 'output', text: `Retrying installation for ${pkgName} without source restriction...\n` });
+      const fallbackArgs = [
+        'install',
+        fallbackQuery,
+        '--force',
+        '--accept-package-agreements',
+        '--accept-source-agreements',
+        '--disable-interactivity'
+      ];
+      outcome = await runSingleBundleInstall(fallbackArgs);
+    }
+
+    results.push(outcome);
+
+    event.sender.send('bundles:install-progress', {
+      index: i + 1,
+      total,
+      pkgId,
+      pkgName,
+      status: outcome.success ? 'success' : 'failed',
+      percent: Math.round(((i + 1) / total) * 100),
+      message: outcome.success ? `Successfully installed ${pkgName}.` : `Failed to install ${pkgName}.`
+    });
+  }
+
+  event.sender.send('bundles:install-done', {
+    success: results.every(r => r.success),
+    results
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // WINGET PINNING & PAUSING SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
-const pinnedStorePath = path.join(app.getPath('userData'), 'pinned_packages.json');
+const pinnedStorePath = path.join(activeDataDir, 'pinned_packages.json');
 
 function loadPinnedStore() {
   try {
@@ -493,8 +1403,8 @@ ipcMain.handle('winget:pin-list', async () => {
   return new Promise((resolve) => {
     const localPins = loadPinnedStore();
     const env = buildEnv();
-    const proc = spawn('cmd', ['/c', 'winget pin list'], {
-      env, shell: false, windowsHide: true,
+    const proc = spawnWinget(['pin', 'list'], {
+      env
     });
 
     let stdout = '';
@@ -546,8 +1456,8 @@ ipcMain.handle('winget:pin-add', async (_e, pkg) => {
 
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawn('cmd', ['/c', `winget pin add --id "${pkgId}" --blocking`], {
-      env, shell: false, windowsHide: true,
+    const proc = spawnWinget(['pin', 'add', '--id', `"${pkgId}"`, '--blocking'], {
+      env
     });
 
     let stdout = '';
@@ -577,7 +1487,7 @@ ipcMain.handle('winget:pin-add', async (_e, pkg) => {
       }
       savePinnedStore(localPins);
 
-      resolve({ success: true, id: pkgId, code, stdout, stderr });
+      resolve({ success: code === 0, id: pkgId, code, stdout, stderr });
     });
 
     proc.on('error', (err) => {
@@ -591,8 +1501,8 @@ ipcMain.handle('winget:pin-remove', async (_e, pkgId) => {
 
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawn('cmd', ['/c', `winget pin remove --id "${pkgId}"`], {
-      env, shell: false, windowsHide: true,
+    const proc = spawnWinget(['pin', 'remove', '--id', `"${pkgId}"`], {
+      env
     });
 
     let stdout = '';
@@ -882,8 +1792,8 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
       '--accept-source-agreements'
     ];
 
-    const proc = spawn('winget', args, {
-      env, shell: true, windowsHide: true,
+    const proc = spawnWinget(args, {
+      env
     });
 
     let procOutput = '';
@@ -1411,15 +2321,52 @@ ipcMain.handle('system:info', async () => {
   }
 
   return {
-    hostname:    process.env.COMPUTERNAME || os.hostname(),
-    osName:      osName,
-    platform:    os.platform(),
-    release:     os.release(),
-    arch:        os.arch(),
-    uptime:      os.uptime(),
-    totalMemory: os.totalmem(),
-    freeMemory:  os.freemem(),
+    hostname:     process.env.COMPUTERNAME || os.hostname(),
+    osName:       osName,
+    platform:     os.platform(),
+    release:      os.release(),
+    arch:         os.arch(),
+    uptime:       os.uptime(),
+    totalMemory:  os.totalmem(),
+    freeMemory:   os.freemem(),
+    isPortable:   isPortableMode,
+    dataDir:      activeDataDir,
+    settingsPath: settingsFilePath
   };
+});
+
+// ─── Portable & Persistent Settings IPC (.\data\settings.json) ────────────────
+ipcMain.handle('settings:get', async () => {
+  return {
+    success: true,
+    isPortable: isPortableMode,
+    dataDir: activeDataDir,
+    settingsPath: settingsFilePath,
+    settings: loadAppSettings()
+  };
+});
+
+ipcMain.handle('settings:save', async (_e, partial = {}) => {
+  const updated = saveAppSettings(partial);
+  return {
+    success: !!updated,
+    isPortable: isPortableMode,
+    dataDir: activeDataDir,
+    settingsPath: settingsFilePath,
+    settings: updated
+  };
+});
+
+ipcMain.handle('settings:open-data-folder', async () => {
+  try {
+    if (!fs.existsSync(activeDataDir)) {
+      fs.mkdirSync(activeDataDir, { recursive: true });
+    }
+    await shell.openPath(activeDataDir);
+    return { success: true, path: activeDataDir };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1472,10 +2419,354 @@ ipcMain.handle('apps:list-installed', async () => {
   });
 });
 
+// ─── Deep Uninstaller v2: Platform Shield Whitelist & Residual Preview IPC ────
+const CORE_PROTECTED_ECOSYSTEMS = [
+  'epic games', 'epicgames', 'epicgameslauncher', 'epic', 'epic online services',
+  'steam', 'valve', 'steamapps', 'common',
+  'ubisoft', 'ubisoft game launcher', 'ubisoftconnect', 'upc',
+  'electronic arts', 'ea desktop', 'origin', 'ea games', 'origin games',
+  'riot games', 'riot client',
+  'battle.net', 'blizzard', 'blizzard entertainment',
+  'gog galaxy', 'gog.com',
+  'microsoft', 'windows', 'windows nt', 'windowsapps', 'package cache', 'common files',
+  'system32', 'syswow64', 'program files', 'program files (x86)', 'programdata',
+  'adobe', 'google', 'mozilla', 'apple', 'nvidia', 'nvidia corporation', 'amd', 'intel',
+  'saved games', 'my games', 'documents', 'downloads', 'desktop'
+];
+
+const UNINSTALL_STOPWORDS = new Set([
+  'setup', 'install', 'installer', 'uninstaller', 'update', 'updater',
+  'windows', 'microsoft', 'corporation', 'inc', 'ltd', 'gmbh', 'llc',
+  'software', 'app', 'application', 'tool', 'tools', 'utility', 'utilities',
+  'x64', 'x86', 'win64', 'win32', 'v1', 'v2', 'v3', 'edition', 'version',
+  'free', 'pro', 'desktop', 'client', 'service', 'services', 'manager', 'management',
+  'games', 'game', 'gaming', 'player', 'play', 'studio', 'studios', 'system', 'systems',
+  'center', 'centre', 'hub', 'suite', 'online', 'live', 'code', 'open', 'web', 'net',
+  'file', 'files', 'data', 'base', 'core', 'pack', 'package', 'portable', 'classic',
+  'launcher', 'store', 'portal', 'community', 'standard', 'ultimate', 'deluxe'
+]);
+
+ipcMain.handle('shield:get-whitelist', async () => {
+  const cfg = loadAppSettings();
+  const customList = Array.isArray(cfg.platformShieldWhitelist) ? cfg.platformShieldWhitelist : [];
+  return {
+    success: true,
+    whitelist: customList,
+    coreProtected: [
+      'Steam / Valve (steamapps)',
+      'Epic Games Launcher',
+      'Riot Games & Vanguard',
+      'EA App / Origin',
+      'Ubisoft Connect',
+      'Blizzard Battle.net',
+      'GOG Galaxy',
+      'Windows System32 & Drivers'
+    ]
+  };
+});
+
+ipcMain.handle('shield:save-whitelist', async (_e, newList) => {
+  const cleanList = Array.isArray(newList)
+    ? Array.from(new Set(newList.map(x => String(x || '').trim()).filter(Boolean)))
+    : [];
+  const updated = saveAppSettings({ platformShieldWhitelist: cleanList });
+  return {
+    success: !!updated,
+    whitelist: cleanList
+  };
+});
+
+ipcMain.handle('shield:pick-folder', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { canceled: true };
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Folder to Protect in Platform Shield Whitelist',
+    properties: ['openDirectory']
+  });
+  if (!res.canceled && res.filePaths && res.filePaths.length > 0) {
+    return { canceled: false, folderPath: res.filePaths[0] };
+  }
+  return { canceled: true };
+});
+
+ipcMain.handle('apps:preview-residuals', async (_e, appsInput) => {
+  try {
+    const appsList = Array.isArray(appsInput) ? appsInput : (appsInput ? [appsInput] : []);
+    if (appsList.length === 0) {
+      return { success: true, folders: [], registryKeys: [], shieldedItems: [] };
+    }
+
+    const cfg = loadAppSettings();
+    const customWhitelist = Array.isArray(cfg.platformShieldWhitelist)
+      ? cfg.platformShieldWhitelist.map(x => String(x).trim().toLowerCase()).filter(Boolean)
+      : [];
+    const protectedSet = new Set([
+      ...CORE_PROTECTED_ECOSYSTEMS,
+      ...customWhitelist,
+      ...customWhitelist.map(w => path.basename(w))
+    ]);
+
+    const isWhitelistedPath = (candidatePath) => {
+      if (!candidatePath) return false;
+      const cLow = candidatePath.toLowerCase();
+      const base = path.basename(candidatePath).toLowerCase();
+      if (protectedSet.has(base) || protectedSet.has(cLow)) return true;
+      for (const cw of customWhitelist) {
+        if (cw && (cLow === cw || cLow.startsWith(cw + '\\') || cLow.includes('\\' + cw + '\\') || cLow.endsWith('\\' + cw))) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const foldersMap = new Map();
+    const shieldedMap = new Map();
+    const regKeysMap = new Map();
+
+    const commonBases = [
+      process.env.ProgramData,
+      process.env.LOCALAPPDATA,
+      process.env.APPDATA,
+      process.env.USERPROFILE ? path.join(process.env.USERPROFILE, 'AppData', 'LocalLow') : '',
+      process.env.APPDATA ? path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs') : '',
+      process.env.ProgramData ? path.join(process.env.ProgramData, 'Microsoft', 'Windows', 'Start Menu', 'Programs') : '',
+      os.tmpdir()
+    ].filter(p => p && fs.existsSync(p));
+
+    const progFilesBases = [
+      process.env.ProgramFiles,
+      process.env['ProgramFiles(x86)']
+    ].filter(p => p && fs.existsSync(p));
+
+    const appTargets = [];
+
+    for (const appObj of appsList) {
+      const name = appObj.name || '';
+      const id = appObj.id || '';
+      const installLocation = appObj.installLocation || '';
+      const uninstallString = appObj.uninstallString || '';
+
+      const uninstLower = uninstallString.toLowerCase();
+      const idLower = id.toLowerCase();
+      const locLower = installLocation.toLowerCase();
+
+      const isLauncherManaged =
+        uninstLower.includes('steam://') || uninstLower.includes('steam.exe') || idLower.startsWith('steam app ') ||
+        uninstLower.includes('com.epicgames.launcher') || locLower.includes('\\epic games\\') || idLower.startsWith('epicgames.') ||
+        locLower.includes('ubisoft game launcher') || uninstLower.includes('uplay') ||
+        locLower.includes('ea desktop') || locLower.includes('origin games') || locLower.includes('ea games') ||
+        locLower.includes('riot games') || uninstLower.includes('riotclient') ||
+        locLower.includes('battle.net') || uninstLower.includes('battlenet://') ||
+        locLower.includes('gog galaxy');
+
+      const cleanName = name
+        .replace(/\(.*?\)/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/\bv?\d+(\.\d+)*\b/g, '')
+        .trim();
+      const normApp = cleanName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      const rawTokens = [];
+      cleanName.split(/[\s\-_\.]+/).forEach(w => {
+        const low = w.toLowerCase().trim();
+        if (low.length >= 3 && !UNINSTALL_STOPWORDS.has(low)) rawTokens.push(low);
+      });
+
+      if (installLocation && fs.existsSync(installLocation)) {
+        const baseFolder = path.basename(installLocation).toLowerCase().trim();
+        if (isWhitelistedPath(installLocation)) {
+          shieldedMap.set(installLocation.toLowerCase(), {
+            type: 'folder',
+            path: installLocation,
+            appName: name
+          });
+        } else if (baseFolder.length >= 3 && !UNINSTALL_STOPWORDS.has(baseFolder)) {
+          rawTokens.push(baseFolder);
+          foldersMap.set(installLocation.toLowerCase(), {
+            type: 'folder',
+            path: installLocation,
+            appName: name
+          });
+        }
+      }
+
+      const tokens = Array.from(new Set(rawTokens));
+      appTargets.push({ name, id, cleanName, normApp, tokens });
+
+      const scanBases = isLauncherManaged ? commonBases : [...commonBases, ...progFilesBases];
+      const escapedClean = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const prefixRegex = cleanName.length >= 4 ? new RegExp(`^${escapedClean}([\\s\\-_\\.]|$)`, 'i') : null;
+
+      for (const base of scanBases) {
+        let entries = [];
+        try {
+          entries = fs.readdirSync(base, { withFileTypes: true });
+        } catch (_) { continue; }
+
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          const eName = entry.name.trim();
+          const eLow = eName.toLowerCase();
+          const eNorm = eName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const fullPath = path.join(base, entry.name);
+
+          let matched = false;
+          if (normApp && eNorm === normApp) {
+            matched = true;
+          } else if (prefixRegex && prefixRegex.test(eName)) {
+            matched = true;
+          } else if (tokens.length >= 2 && tokens.every(t => eLow.includes(t))) {
+            matched = true;
+          }
+
+          if (matched) {
+            if (isWhitelistedPath(fullPath)) {
+              shieldedMap.set(fullPath.toLowerCase(), {
+                type: 'folder',
+                path: fullPath,
+                appName: name
+              });
+            } else {
+              foldersMap.set(fullPath.toLowerCase(), {
+                type: 'folder',
+                path: fullPath,
+                appName: name
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Fast PowerShell Registry residual preview
+    const psPayload = JSON.stringify(appTargets.map(a => ({
+      name: a.name,
+      id: a.id,
+      normApp: a.normApp
+    })));
+    const psProtected = JSON.stringify(Array.from(protectedSet));
+
+    const psRegScript = `
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$targets = '${psPayload.replace(/'/g, "''")}' | ConvertFrom-Json
+$protectedList = '${psProtected.replace(/'/g, "''")}' | ConvertFrom-Json
+$regRoots = @(
+    "HKLM:\\SOFTWARE",
+    "HKCU:\\Software",
+    "HKLM:\\SOFTWARE\\WOW6432Node",
+    "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths"
+)
+$found = @()
+foreach ($t in $targets) {
+    $normApp = $t.normApp
+    $appId = $t.id
+    $appName = $t.name
+    if (![string]::IsNullOrWhiteSpace($appId)) {
+        $uPaths = @(
+            "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$appId",
+            "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$appId",
+            "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\$appId"
+        )
+        foreach ($up in $uPaths) {
+            if (Test-Path -LiteralPath $up) {
+                $cleanK = $up.Replace('HKLM:\\', 'HKEY_LOCAL_MACHINE\\').Replace('HKCU:\\', 'HKEY_CURRENT_USER\\')
+                $found += [PSCustomObject]@{ path = $cleanK; appName = $appName; shielded = $false }
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($normApp)) { continue }
+    foreach ($root in $regRoots) {
+        if (Test-Path -LiteralPath $root) {
+            $subKeys = Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue
+            foreach ($sk in $subKeys) {
+                $kName = $sk.PSChildName
+                $kLow = $kName.ToLower()
+                $kNorm = ($kName -replace '[^a-zA-Z0-9]', '').ToLower()
+                if ($protectedList -contains $kLow) {
+                    $childKeys = Get-ChildItem -LiteralPath $sk.PSPath -ErrorAction SilentlyContinue
+                    foreach ($ck in $childKeys) {
+                        $ckName = $ck.PSChildName
+                        $ckNorm = ($ckName -replace '[^a-zA-Z0-9]', '').ToLower()
+                        if ($ckNorm -eq $normApp -or ($normApp.Length -ge 4 -and $ckNorm.StartsWith($normApp))) {
+                            $isChildShielded = ($protectedList -contains $ckName.ToLower())
+                            $found += [PSCustomObject]@{ path = $ck.Name; appName = $appName; shielded = $isChildShielded }
+                        }
+                    }
+                    continue
+                }
+                if ($kNorm -eq $normApp -or ($normApp.Length -ge 5 -and $kNorm.StartsWith($normApp))) {
+                    $found += [PSCustomObject]@{ path = $sk.Name; appName = $appName; shielded = $false }
+                }
+            }
+        }
+    }
+}
+$found | ConvertTo-Json -Compress
+`;
+
+    const regResults = await new Promise((resolve) => {
+      const proc = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psRegScript], {
+        windowsHide: true
+      });
+      let out = '';
+      proc.stdout.on('data', d => { out += d.toString('utf8'); });
+      proc.on('close', () => {
+        try {
+          const trimmed = out.trim();
+          if (!trimmed) return resolve([]);
+          const parsed = JSON.parse(trimmed);
+          resolve(Array.isArray(parsed) ? parsed : [parsed]);
+        } catch (_) {
+          resolve([]);
+        }
+      });
+      proc.on('error', () => resolve([]));
+      setTimeout(() => { try { proc.kill(); } catch (_) {} resolve([]); }, 4500);
+    });
+
+    for (const item of regResults) {
+      if (!item || !item.path) continue;
+      const keyLower = item.path.toLowerCase();
+      if (item.shielded || isWhitelistedPath(item.path)) {
+        shieldedMap.set(keyLower, {
+          type: 'registry',
+          path: item.path,
+          appName: item.appName
+        });
+      } else {
+        regKeysMap.set(keyLower, {
+          type: 'registry',
+          path: item.path,
+          appName: item.appName
+        });
+      }
+    }
+
+    return {
+      success: true,
+      folders: Array.from(foldersMap.values()),
+      registryKeys: Array.from(regKeysMap.values()),
+      shieldedItems: Array.from(shieldedMap.values())
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+      folders: [],
+      registryKeys: [],
+      shieldedItems: []
+    };
+  }
+});
+
 ipcMain.on('apps:uninstall-clean', (event, appInfo) => {
   isUninstallCancelled = false;
   activeUninstallProc = null;
-  const { name, publisher, uninstallString, installLocation, id, createRestorePoint } = appInfo;
+  const { name, publisher, uninstallString, installLocation, id, createRestorePoint, excludedResiduals } = appInfo;
+  const userExcludedSet = new Set(Array.isArray(excludedResiduals) ? excludedResiduals.map(x => String(x).toLowerCase()) : []);
+  const customWhitelist = Array.isArray(loadAppSettings().platformShieldWhitelist)
+    ? loadAppSettings().platformShieldWhitelist.map(x => String(x).trim().toLowerCase()).filter(Boolean)
+    : [];
 
   if (!uninstallString) {
     event.sender.send('apps:uninstall-log', { type: 'error', text: '✖ No se encontró comando de desinstalación para esta aplicación.\n' });
@@ -1508,7 +2799,9 @@ ipcMain.on('apps:uninstall-clean', (event, appInfo) => {
     'microsoft', 'windows', 'windows nt', 'windowsapps', 'package cache', 'common files',
     'system32', 'syswow64', 'program files', 'program files (x86)', 'programdata',
     'adobe', 'google', 'mozilla', 'apple', 'nvidia', 'nvidia corporation', 'amd', 'intel',
-    'saved games', 'my games'
+    'saved games', 'my games',
+    ...customWhitelist,
+    ...customWhitelist.map(w => path.basename(w))
   ];
 
   const uninstLower = (uninstallString || '').toLowerCase();
@@ -1604,6 +2897,8 @@ $safeInstallLoc = ${JSON.stringify(safeInstallLoc || '')}
 $tokens = @(${tokens.map(t => JSON.stringify(t)).join(', ')})
 $isLauncherManaged = ${isLauncherManaged ? '$true' : '$false'}
 $createRestorePoint = ${createRestorePoint ? '$true' : '$false'}
+$userExcluded = @(${Array.from(userExcludedSet).map(x => JSON.stringify(x)).join(', ')})
+$customWhitelistPaths = @(${customWhitelist.map(x => JSON.stringify(x)).join(', ')})
 
 $deletedDirs = 0
 $purgedKeys = 0
@@ -1625,6 +2920,28 @@ $protectedNames = @(
     "adobe", "google", "mozilla", "apple", "nvidia", "nvidia corporation", "amd", "intel",
     "saved games", "my games", "documents", "downloads", "desktop"
 )
+foreach ($cw in $customWhitelistPaths) {
+    if (![string]::IsNullOrWhiteSpace($cw)) {
+        $protectedNames += $cw.ToLower()
+        $cwBase = [System.IO.Path]::GetFileName($cw).ToLower()
+        if ($cwBase) { $protectedNames += $cwBase }
+    }
+}
+
+function Test-IsExcludedOrWhitelisted([string]$candidatePath) {
+    if ([string]::IsNullOrWhiteSpace($candidatePath)) { return $true }
+    $cLow = $candidatePath.ToLower()
+    $cClean = $cLow.Replace('microsoft.powershell.core\\registry::', '').Replace('hklm:\\', 'hklm\\').Replace('hkcu:\\', 'hkcu\\')
+    if ($userExcluded -contains $cLow -or $userExcluded -contains $cClean) { return $true }
+    foreach ($cw in $customWhitelistPaths) {
+        if (![string]::IsNullOrWhiteSpace($cw)) {
+            if ($cLow -eq $cw -or $cClean -eq $cw -or $cLow.StartsWith($cw + "\\") -or $cLow.IndexOf("\\" + $cw + "\\") -ge 0 -or $cLow.EndsWith("\\" + $cw)) {
+                return $true
+            }
+        }
+    }
+    return $false
+}
 
 $protectedProcs = @(
     'epicgameslauncher', 'epiconlineservices', 'steam', 'steamwebhelper', 'steamservice',
@@ -1755,6 +3072,10 @@ foreach ($regRoot in $regRoots) {
             }
 
             if ($isMatch) {
+                if (Test-IsExcludedOrWhitelisted $sk.Name) {
+                    Write-Output "LOG:warning|  [ESCUDO LISTA BLANCA] Omitiendo clave protegida por el usuario: $($sk.Name)"
+                    continue
+                }
                 Backup-RegKey $sk.PSPath $kName
                 Write-Output "LOG:output|  [FASE 4] Purgando clave de registro residual: $($sk.Name)"
                 Remove-Item -LiteralPath $sk.PSPath -Recurse -Force -ErrorAction SilentlyContinue
@@ -1845,10 +3166,10 @@ foreach ($base in $scanBases) {
 }
 
 foreach ($target in $dirsToPurge) {
-    # Doble verificación antes de borrar
+    # Doble verificación antes de borrar (incluyendo Lista Blanca de Platform Shield y exclusiones del usuario)
     $tBase = [System.IO.Path]::GetFileName($target).ToLower()
-    if ($protectedNames -contains $tBase) {
-        Write-Output "LOG:warning|  [ESCUDO] Protección activada: Omitiendo carpeta del sistema o lanzador: $target"
+    if (($protectedNames -contains $tBase) -or (Test-IsExcludedOrWhitelisted $target)) {
+        Write-Output "LOG:warning|  [ESCUDO] Protección o Lista Blanca activada: Omitiendo carpeta: $target"
         continue
     }
 
@@ -2268,7 +3589,7 @@ ipcMain.on('gpu:install-package', (event, { pkgId, source, name }) => {
     args.push('--silent');
   }
 
-  const wingetProc = spawn('winget.exe', args, { env: buildEnv(), shell: true });
+  const wingetProc = spawnWinget(args, { env: buildEnv() });
 
   wingetProc.stdout.on('data', (d) => {
     event.sender.send('gpu:install-log', { type: 'output', text: d.toString() });
@@ -2756,7 +4077,7 @@ ipcMain.handle('restore:delete-all', async () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const GITHUB_OWNER = 'joselyky';
 const GITHUB_REPO = 'Wingetix';
-const APP_CURRENT_VERSION = app.getVersion() || '1.1.1';
+const APP_CURRENT_VERSION = app.getVersion() || '1.2.0';
 
 /**
  * Compare two semver version strings.

@@ -39,7 +39,7 @@
               <span class="dropdown-header-title">Wingetix</span>
               <span class="dropdown-header-sub" data-i18n="app_subtitle">Control & Cleaner Panel</span>
             </div>
-            <span class="dropdown-version-pill">v1.1.1</span>
+            <span class="dropdown-version-pill">v1.2.0</span>
           </div>
 
           <div class="titlebar-dropdown-divider"></div>
@@ -123,9 +123,29 @@
               <span class="dropdown-item-primary" data-i18n="menu_github_repo">GitHub Repository</span>
             </div>
           </button>
+
+          <button id="menu-open-about" class="titlebar-dropdown-item" role="menuitem">
+            <div class="dropdown-item-left">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <span class="dropdown-item-primary" data-i18n="menu_about_faq">About Wingetix & FAQ</span>
+            </div>
+          </button>
+
+          <button id="menu-open-data-folder" class="titlebar-dropdown-item" role="menuitem">
+            <div class="dropdown-item-left">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <span class="dropdown-item-primary" data-i18n="menu_open_data_folder">Open Data Folder (.\data)</span>
+            </div>
+          </button>
         </div>
       </div>
-      <span id="titlebar-app-version" class="app-version-badge" data-i18n-title="titlebar_version_tooltip" title="Installed version: v1.1.1. Click to check for updates on GitHub">v1.1.1</span>
+      <span id="titlebar-app-version" class="app-version-badge" data-i18n-title="titlebar_version_tooltip" title="Installed version: v1.2.0. Click to check for updates on GitHub">v1.2.0</span>
     </div>
     <div class="titlebar-right">
       <div class="titlebar-controls">
@@ -168,17 +188,6 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
           <span data-i18n="nav_uninstaller">Uninstaller</span>
         </button>
-        <button id="nav-gpu" class="nav-nav-btn" data-i18n-aria="nav_gpu" aria-label="Graphics & Control">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><circle cx="7.5" cy="10.5" r="2.5"/><circle cx="16.5" cy="10.5" r="2.5"/><path d="M5 17v3M8 17v3M11 17v3M16 17v3M19 17v3"/></svg>
-          <span data-i18n="nav_gpu">Graphics & Control</span>
-        </button>
-        <button id="nav-restore" class="nav-nav-btn" data-i18n-aria="nav_restore" aria-label="Restore Points">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <polyline points="9 12 11 14 15 10"/>
-          </svg>
-          <span data-i18n="nav_restore">Restore Points</span>
-        </button>
         <button id="nav-cleaner" class="nav-nav-btn" data-i18n-aria="nav_cleaner" aria-label="Storage Cleaner">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m14 12-8.5 8.5a2.12 2.12 0 1 1-3-3L11 9"/>
@@ -187,6 +196,25 @@
             <path d="m15 5 4 4"/>
           </svg>
           <span data-i18n="nav_cleaner">Storage Cleaner</span>
+        </button>
+        <button id="nav-gpu" class="nav-nav-btn" data-i18n-aria="nav_gpu" aria-label="Graphics & Control">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><circle cx="7.5" cy="10.5" r="2.5"/><circle cx="16.5" cy="10.5" r="2.5"/><path d="M5 17v3M8 17v3M11 17v3M16 17v3M19 17v3"/></svg>
+          <span data-i18n="nav_gpu">Graphics & Control</span>
+        </button>
+        <button id="nav-bundles" class="nav-nav-btn" data-i18n-aria="nav_bundles" aria-label="Software Packs">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          <span data-i18n="nav_bundles">Software Packs</span>
+        </button>
+        <button id="nav-restore" class="nav-nav-btn" data-i18n-aria="nav_restore" aria-label="Restore Points">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 11 14 15 10"/>
+          </svg>
+          <span data-i18n="nav_restore">Restore Points</span>
         </button>
       </div>
 
@@ -199,6 +227,7 @@
         <div id="system-info" class="info-card-body">
           <div class="info-row"><span class="info-label" data-i18n="sys_host">Host</span><span id="sys-host" class="info-value">—</span></div>
           <div class="info-row"><span class="info-label" data-i18n="sys_os">OS</span><span id="sys-os" class="info-value">—</span></div>
+          <div class="info-row"><span class="info-label" data-i18n="sys_mode">Mode</span><span id="sys-mode" class="info-value sys-mode-badge">—</span></div>
         </div>
       </div>
 
@@ -284,6 +313,22 @@
             </span>
           </div>
         </label>
+
+        <!-- Platform Shield Configurable Whitelist Card -->
+        <button type="button" id="btn-open-platform-shield" class="platform-shield-sidebar-btn glass" data-i18n-title="shield_btn_tooltip" title="Configure custom protected folders and registry keys in Platform Shield">
+          <div class="toggle-card-left">
+            <div class="toggle-card-icon shield-accent-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div class="toggle-card-text">
+              <span class="toggle-card-title" data-i18n="shield_sidebar_title">Platform Shield</span>
+              <span class="toggle-card-desc" data-i18n="shield_sidebar_desc">Custom Whitelist</span>
+            </div>
+          </div>
+          <span id="shield-whitelist-count-badge" class="shield-count-pill">0</span>
+        </button>
       </div>
 
       <!-- GPU Controls Wrapper -->
@@ -370,6 +415,37 @@
           </div>
         </div>
       </div>
+
+      <!-- Software Packs Controls Wrapper -->
+      <div id="sidebar-bundles-controls" class="sidebar-section-controls hidden">
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card glass">
+            <span id="stat-bundle-count" class="stat-number">0</span>
+            <span class="stat-label" data-i18n="stat_bundle_count">Apps in Pack</span>
+          </div>
+          <div class="stat-card glass">
+            <span id="stat-bundle-installed" class="stat-number">0</span>
+            <span class="stat-label" data-i18n="stat_bundle_installed">Installed on PC</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons (Strictly NO emojis) -->
+        <div class="action-buttons">
+          <button id="btn-bundles-install-all" class="btn btn-primary" data-i18n-aria="btn_bundles_install_all" aria-label="Install Pack" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="btn_bundles_install_all">Install Pack</span>
+          </button>
+          <button id="btn-bundles-load" class="btn btn-accent" data-i18n-aria="btn_bundles_load" aria-label="Open Pack File">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span data-i18n="btn_bundles_load">Open Pack File</span>
+          </button>
+          <button id="btn-bundles-save" class="btn btn-ghost" data-i18n-aria="btn_bundles_create_pack" aria-label="Create Pack" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <span data-i18n="btn_bundles_create_pack">Create Pack</span>
+          </button>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Content -->
@@ -451,13 +527,13 @@
                   </div>
                 </div>
                 <select id="sort-packages-select" class="visually-hidden" aria-hidden="true" tabindex="-1">
-                  <option value="name-asc" selected>Nombre (A - Z)</option>
-                  <option value="name-desc">Nombre (Z - A)</option>
-                  <option value="creator-asc">Creador (A - Z)</option>
-                  <option value="creator-desc">Creador (Z - A)</option>
-                  <option value="size-desc">Tamaño (Mayor primero)</option>
-                  <option value="size-asc">Tamaño (Menor primero)</option>
-                  <option value="id-asc">ID (A - Z)</option>
+                  <option value="name-asc" selected>Name (A - Z)</option>
+                  <option value="name-desc">Name (Z - A)</option>
+                  <option value="creator-asc">Creator (A - Z)</option>
+                  <option value="creator-desc">Creator (Z - A)</option>
+                  <option value="size-desc">Size (Largest first)</option>
+                  <option value="size-asc">Size (Smallest first)</option>
+                  <option value="id-asc">Package ID (A - Z)</option>
                 </select>
               </div>
             </div>
@@ -651,12 +727,12 @@
                   </div>
                 </div>
                 <select id="sort-installed-select" class="visually-hidden" aria-hidden="true" tabindex="-1">
-                  <option value="name-asc" selected>Nombre (A - Z)</option>
-                  <option value="name-desc">Nombre (Z - A)</option>
-                  <option value="creator-asc">Editor (A - Z)</option>
-                  <option value="creator-desc">Editor (Z - A)</option>
-                  <option value="size-desc">Tamaño (Mayor primero)</option>
-                  <option value="size-asc">Tamaño (Menor primero)</option>
+                  <option value="name-asc" selected>Name (A - Z)</option>
+                  <option value="name-desc">Name (Z - A)</option>
+                  <option value="creator-asc">Publisher (A - Z)</option>
+                  <option value="creator-desc">Publisher (Z - A)</option>
+                  <option value="size-desc">Size (Largest first)</option>
+                  <option value="size-asc">Size (Smallest first)</option>
                 </select>
               </div>
             </div>
@@ -793,6 +869,15 @@
         </div>
 
         <div class="package-section gpu-section">
+          <!-- Multi-GPU Selector Container (shown when multiple GPUs are detected) -->
+          <div id="gpu-selector-container" class="gpu-selector-container hidden">
+            <div class="gpu-selector-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              <span data-i18n="gpu_selector_label">Detected GPUs:</span>
+            </div>
+            <div id="gpu-selector-pills" class="gpu-selector-pills"></div>
+          </div>
+
           <!-- Loading State -->
           <div id="gpu-state-loading" class="gpu-state-card glass">
             <div class="gpu-loading-spinner"></div>
@@ -1261,6 +1346,150 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════════════
+           Software Packs & Bundles Studio View
+      ═══════════════════════════════════════════════════════════════ -->
+      <div id="main-bundles-view" class="main-view-wrapper hidden">
+        <!-- Top Bar -->
+        <div class="topbar">
+          <div class="topbar-left">
+            <div class="search-wrapper">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <input id="search-bundles-input" type="text" class="search-input" data-i18n-placeholder="bundles_search_placeholder" placeholder="Filter apps in pack... (Ctrl+F)" data-i18n-aria="bundles_search_placeholder" aria-label="Filter apps in pack" />
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="btn-bundle-add-custom" class="btn btn-primary btn-sm" data-i18n-aria="btn_bundles_add_id" aria-label="Add Package by ID">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span data-i18n="btn_bundles_add_id">Add Package by ID</span>
+            </button>
+            <button id="btn-bundle-pick-installed" class="btn btn-accent btn-sm" data-i18n-aria="btn_bundles_pick_installed" aria-label="Add from Installed Apps">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <span data-i18n="btn_bundles_pick_installed">Add from Installed Apps</span>
+            </button>
+            <button id="btn-bundle-clear" class="btn btn-ghost btn-sm" data-i18n-aria="btn_bundles_clear" aria-label="Clear Pack">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span data-i18n="btn_bundles_clear">Clear Pack</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Package Section -->
+        <div class="package-section">
+          <!-- Hero Card for Pack Metadata -->
+          <div class="bundle-hero-card glass">
+            <div class="bundle-hero-left">
+              <div class="bundle-icon-box">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </div>
+              <div class="bundle-hero-info">
+                <div class="bundle-name-wrap">
+                  <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #38bdf8;" data-i18n="bundles_pack_name_label">Pack Name:</span>
+                  <input type="text" id="bundle-pack-name" class="bundle-name-input" value="My Software Pack" data-i18n-placeholder="bundles_pack_name_placeholder" placeholder="e.g., Gaming Setup, Developer Suite...">
+                </div>
+                <div class="bundle-hero-pills">
+                  <span id="bundle-hero-count" class="bundle-status-badge bundle-status-pending">0 Apps</span>
+                  <span id="bundle-hero-installed" class="bundle-status-badge bundle-status-installed">0 Installed on PC</span>
+                </div>
+              </div>
+            </div>
+            <div class="bundle-hero-actions">
+              <button id="btn-hero-install-pack" class="btn btn-primary btn-sm" data-i18n-title="btn_bundles_install_all" title="Install Pack">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span data-i18n="btn_bundles_install_all">Install Pack</span>
+              </button>
+              <button id="btn-hero-export-installed" class="btn btn-ghost btn-sm" style="border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.05);" data-i18n-title="btn_bundles_create_pack" title="Create Software Pack">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                <span data-i18n="btn_bundles_create_pack">Create Pack</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Installation Banner/Progress HUD (Hidden when idle) -->
+          <div id="bundle-install-progress-card" class="bundle-install-hud glass hidden">
+            <div class="bundle-hud-header">
+              <div class="bundle-hud-left">
+                <div class="bundle-hud-spinner">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin-icon">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                  </svg>
+                </div>
+                <div class="bundle-hud-title-wrap">
+                  <span class="bundle-hud-title" data-i18n="bundles_install_progress_title">Installing Software Pack</span>
+                  <span class="bundle-hud-sep">•</span>
+                  <span id="bundle-install-current-text" class="bundle-hud-app-name">Preparing...</span>
+                </div>
+              </div>
+              <div class="bundle-hud-right">
+                <span id="bundle-install-stats-text" class="bundle-hud-badge">0 / 0</span>
+                <span id="bundle-install-percent" class="bundle-hud-pct">0%</span>
+                <button id="btn-bundle-cancel-install" class="bundle-hud-cancel" title="Cancel Installation" aria-label="Cancel">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  <span data-i18n="btn_bundle_cancel_install">Cancel</span>
+                </button>
+              </div>
+            </div>
+            <div class="bundle-hud-track">
+              <div id="bundle-install-progress-bar" class="bundle-hud-fill" style="width: 0%"></div>
+            </div>
+            <div class="bundle-hud-footer">
+              <span id="bundle-install-detail-text" class="bundle-hud-detail">Starting unattended installation...</span>
+            </div>
+          </div>
+
+          <!-- Empty State (Shown when pack has no apps) -->
+          <div id="bundles-empty-state" class="empty-state bundle-empty-state">
+            <div class="empty-state-icon" style="color: #38bdf8;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </div>
+            <h2 class="empty-state-title" data-i18n="bundles_empty_title">Your Software Pack is Empty</h2>
+            <p class="empty-state-desc" data-i18n="bundles_empty_desc" style="max-width: 520px;">Build a collection of your favorite software to install automatically in a single click. Click 'Add from Installed Apps', 'Add Package by ID', or open an existing .wingetix pack.</p>
+            <div class="bundle-empty-actions">
+              <button id="btn-empty-pick-installed" class="btn btn-accent bundle-empty-action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span data-i18n="btn_bundles_pick_installed">Add from Installed Apps</span>
+              </button>
+              <button id="btn-empty-add-pkg" class="btn btn-primary bundle-empty-action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span data-i18n="btn_bundles_add_id">Add Package by ID</span>
+              </button>
+              <button id="btn-empty-load" class="btn btn-ghost bundle-empty-action">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span data-i18n="btn_bundles_load">Open Pack File</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Pack Apps Table Wrapper -->
+          <div id="bundles-table-wrapper" class="package-table-wrapper hidden">
+            <table class="package-table" aria-label="Software pack packages list">
+              <thead>
+                <tr>
+                  <th class="col-check" style="width: 44px; text-align: center;">
+                    <input type="checkbox" id="chk-bundle-header" class="custom-checkbox" title="Select / Deselect All">
+                  </th>
+                  <th class="col-name" data-i18n="bundles_table_col_app">Application</th>
+                  <th class="col-version" style="width: 130px; text-align: center;" data-i18n="bundles_table_col_version">Version</th>
+                  <th style="width: 140px; text-align: center;" data-i18n="bundles_table_col_status">Status</th>
+                  <th style="width: 90px; text-align: center;" data-i18n="bundles_table_col_actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bundles-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
            Live Update & Download Queue Drawer
       ═══════════════════════════════════════════════════════════════ -->
       <div id="queue-drawer" class="queue-drawer glass hidden">
@@ -1354,6 +1583,59 @@
       </div>
       <div class="modal-body">
         <p id="confirm-modal-text">Are you sure you want to perform this operation? Updating or modifying critical system components may destabilize your computer or cause unexpected failures.</p>
+
+        <!-- Deep Uninstaller v2: Collapsible Residual Folders & Registry Preview -->
+        <div id="uninstall-residuals-preview-box" class="residuals-preview-box hidden">
+          <button type="button" id="btn-toggle-residuals-preview" class="residuals-preview-toggle" aria-expanded="false">
+            <div class="residuals-toggle-left">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span id="residuals-toggle-label" data-i18n="residuals_preview_toggle">Preview folders & registry keys to purge</span>
+              <span id="residuals-preview-count-badge" class="residuals-count-badge">...</span>
+            </div>
+            <svg id="residuals-toggle-chevron" class="residuals-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          <div id="residuals-preview-drawer" class="residuals-preview-drawer hidden">
+            <div id="residuals-preview-loading" class="residuals-loading-row">
+              <div class="spinner" style="width: 14px; height: 14px; border-width: 2px;"></div>
+              <span data-i18n="residuals_preview_scanning">Scanning residual directories and registry keys...</span>
+            </div>
+
+            <div id="residuals-preview-content" class="residuals-preview-content hidden">
+              <p class="residuals-preview-hint" data-i18n="residuals_preview_hint">Uncheck any folder or registry key below if you want to keep it after uninstallation:</p>
+
+              <div id="residuals-folders-section" class="residuals-group">
+                <div class="residuals-group-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span data-i18n="residuals_folders_heading">Residual Directories on Disk</span>
+                  <span id="residuals-folders-count" class="residuals-sub-count">0</span>
+                </div>
+                <div id="residuals-folders-list" class="residuals-items-list"></div>
+              </div>
+
+              <div id="residuals-reg-section" class="residuals-group">
+                <div class="residuals-group-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  <span data-i18n="residuals_registry_heading">Residual Registry Keys (HKLM / HKCU)</span>
+                  <span id="residuals-reg-count" class="residuals-sub-count">0</span>
+                </div>
+                <div id="residuals-reg-list" class="residuals-items-list"></div>
+              </div>
+
+              <div id="residuals-shielded-section" class="residuals-group hidden">
+                <div class="residuals-group-title shielded-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                  <span data-i18n="residuals_shielded_heading">Protected by Platform Shield / Whitelist (Will NOT be touched)</span>
+                </div>
+                <div id="residuals-shielded-list" class="residuals-items-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button id="btn-modal-cancel" class="btn btn-ghost" data-i18n="btn_cancel">Cancel</button>
@@ -1412,14 +1694,14 @@
             <div class="app-update-versions">
               <div class="ver-pill current">
                 <span class="ver-label" data-i18n="app_update_cur_ver">Current Version</span>
-                <span id="app-update-cur-ver" class="ver-tag">v1.1.1</span>
+                <span id="app-update-cur-ver" class="ver-tag">v1.2.0</span>
               </div>
               <div class="ver-arrow">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </div>
               <div class="ver-pill latest">
                 <span class="ver-label" data-i18n="app_update_new_ver">New Version</span>
-                <span id="app-update-new-ver" class="ver-tag">v1.0.3</span>
+                <span id="app-update-new-ver" class="ver-tag">v1.2.1</span>
               </div>
             </div>
             <div id="app-update-date" class="app-update-date" data-i18n="app_update_github_available">Available on GitHub</div>
@@ -1497,6 +1779,315 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
           <span data-i18n="app_update_close_and_install">Close & Install Update</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: WinGet Engine Missing / Activation Assistant -->
+  <div id="modal-winget-activation" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card glass" style="max-width: 520px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 12 4 7"/><line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+        </div>
+        <div class="modal-header-text" style="margin-left: 10px;">
+          <span class="modal-title" data-i18n="winget_missing_title">WinGet Engine Required</span>
+          <span class="modal-subtitle" data-i18n="winget_missing_subtitle">Windows Package Manager is missing or unregistered</span>
+        </div>
+        <button id="btn-close-winget-activation" class="modal-close-btn" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 18px 0;">
+        <p style="font-size: 13.5px; line-height: 1.6; color: var(--color-text-secondary); margin-bottom: 14px;" data-i18n="winget_missing_desc">
+          Wingetix requires the official Microsoft WinGet engine to scan and update your applications. In some Windows editions (e.g., Windows 10 LTSC, Enterprise, or unlinked Microsoft Store), WinGet is not active.
+        </p>
+        <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;">
+          <div style="font-weight: 600; font-size: 12.5px; color: #6ee7b7; margin-bottom: 6px;" data-i18n="winget_missing_action_title">1-Click Automated Solution:</div>
+          <ul style="font-size: 12px; color: var(--color-text-muted); margin-left: 18px; line-height: 1.5;">
+            <li data-i18n="winget_missing_step1">Downloads official Microsoft VCLibs & UI.Xaml dependencies</li>
+            <li data-i18n="winget_missing_step2">Installs latest Microsoft.DesktopAppInstaller MSIX package</li>
+            <li data-i18n="winget_missing_step3">Fixes PATH and UAC execution aliases automatically</li>
+          </ul>
+        </div>
+        <div id="winget-activation-status" class="hidden" style="font-size: 12px; font-family: var(--font-mono); color: #38bdf8; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 6px; margin-top: 8px;">
+          <span id="winget-activation-msg">Activating WinGet...</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-cancel-winget-activation" class="btn btn-ghost" data-i18n="btn_cancel">Cancel</button>
+        <button id="btn-run-winget-activation" class="btn btn-accent" style="display: inline-flex; align-items: center; gap: 8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <span data-i18n="btn_activate_winget_now">Activate WinGet Now</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Package by ID -->
+  <div id="modal-bundle-add-pkg" class="modal-overlay hidden">
+    <div class="modal-card glass" style="max-width: 480px;">
+      <div class="modal-header" style="justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 34px; height: 34px; border-radius: 9px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+          <div>
+            <h3 class="modal-title" style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;" data-i18n="modal_add_pkg_title">Add Package by WinGet ID</h3>
+            <p style="margin: 2px 0 0 0; font-size: 11.5px; color: var(--color-text-secondary);" data-i18n="modal_add_pkg_sub">Enter official WinGet identifier (e.g. Google.Chrome, Valve.Steam)</p>
+          </div>
+        </div>
+        <button id="btn-close-modal-add-pkg" class="btn-modal-close" title="Close" aria-label="Close modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 14px 0 6px 0;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; color: #38bdf8;" data-i18n="modal_add_pkg_label_id">Package ID *</label>
+            <input type="text" id="input-modal-pkg-id" class="bundle-name-input" placeholder="e.g. Google.Chrome" style="width: 100%; max-width: 100%; font-family: var(--font-mono); font-size: 13px; padding: 8px 12px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; color: var(--color-text-muted);" data-i18n="modal_add_pkg_label_name">Application Name (Optional)</label>
+            <input type="text" id="input-modal-pkg-name" class="bundle-name-input" placeholder="e.g. Google Chrome" style="width: 100%; max-width: 100%; font-size: 13px; padding: 8px 12px;">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px; margin-top: 10px;">
+        <button id="btn-cancel-modal-add-pkg" class="btn btn-ghost" data-i18n="btn_modal_cancel">Cancel</button>
+        <button id="btn-submit-modal-add-pkg" class="btn btn-primary" data-i18n="btn_modal_add_pkg_submit">Add to Pack</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Pick from Installed Apps -->
+  <div id="modal-bundle-pick-apps" class="modal-overlay hidden">
+    <div class="modal-card glass bundle-modal-card">
+      <div class="modal-header bundle-modal-header" style="width: 100%; display: flex; align-items: center; justify-content: flex-start; gap: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px; margin-bottom: 8px; box-sizing: border-box;">
+        <button id="btn-close-modal-pick-apps" class="btn-modal-close" title="Close" aria-label="Close modal">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; color: #34d399; flex-shrink: 0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div>
+          <h3 class="modal-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;" data-i18n="modal_pick_apps_title">Select Installed Apps for Pack</h3>
+          <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--color-text-secondary);" data-i18n="modal_pick_apps_sub">Choose any apps currently installed on your PC to add to your custom software pack</p>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 10px 0 0 0; display: flex; flex-direction: column; flex: 1 1 0px; min-height: 0; overflow: hidden;">
+        <div class="bundle-modal-toolbar">
+          <div class="search-wrapper">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <input id="input-modal-pick-search" type="text" class="search-input" placeholder="Search installed apps..." data-i18n-placeholder="modal_pick_apps_search" style="font-size: 12.5px; padding-left: 32px; height: 38px;" />
+          </div>
+          <div class="modal-toolbar-actions">
+            <button id="btn-modal-pick-all" class="btn-modal-action" data-i18n="btn_modal_pick_select_all">Select All</button>
+            <button id="btn-modal-pick-none" class="btn-modal-action" data-i18n="btn_modal_pick_deselect_all">Deselect All</button>
+          </div>
+        </div>
+
+        <div class="package-table-wrapper bundle-modal-table-wrapper">
+          <table class="package-table bundle-pick-table" id="modal-pick-apps-table" aria-label="Installed applications list">
+            <thead>
+              <tr>
+                <th class="col-check" style="width: 44px; text-align: center;">
+                  <input type="checkbox" id="chk-modal-pick-header" class="custom-checkbox" title="Select / Deselect All">
+                </th>
+                <th class="col-name" style="text-align: left;" data-i18n="bundles_table_col_app">Application</th>
+                <th class="col-version" style="width: 130px; text-align: center;" data-i18n="bundles_table_col_version">Version</th>
+              </tr>
+            </thead>
+            <tbody id="modal-pick-apps-tbody">
+              <!-- Populated dynamically with application rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Selected Apps Tray Preview -->
+        <div id="modal-pick-selected-tray" class="bundle-selected-tray hidden">
+          <div class="bundle-selected-tray-header">
+            <span class="bundle-selected-tray-title">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span id="modal-pick-tray-title" data-i18n="modal_pick_tray_title">Selected Apps</span>
+              <span id="modal-pick-tray-badge" class="bundle-selected-tray-badge">0</span>
+            </span>
+            <button type="button" id="btn-modal-pick-clear-tray" class="btn-clear-tray" title="Clear selection" data-i18n="btn_clear_selection">Clear</button>
+          </div>
+          <div id="modal-pick-selected-icons" class="bundle-selected-tray-icons">
+            <!-- Dynamically populated icon chips -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer bundle-modal-footer">
+        <span id="modal-pick-count-text" class="modal-pick-count-text">0 of 0 apps selected</span>
+        <div class="modal-footer-actions">
+          <button id="btn-cancel-modal-pick-apps" class="btn-modal-cancel" data-i18n="btn_modal_cancel">Cancel</button>
+          <button id="btn-submit-modal-pick-apps" class="btn-modal-submit" data-i18n="btn_modal_pick_submit">Add Selected to Pack</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: About Wingetix, Open-Source Pledge & Official WinGet FAQ -->
+  <div id="modal-about-wingetix" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="about-modal-title">
+    <div class="modal-card glass about-modal-card">
+      <div class="modal-header about-modal-header">
+        <div class="about-header-brand">
+          <img src="logo.png" alt="Wingetix" class="about-logo-img" width="42" height="42" />
+          <div>
+            <div class="about-title-row">
+              <h3 id="about-modal-title" class="modal-title">Wingetix</h3>
+              <span class="about-ver-badge">v1.2.0</span>
+            </div>
+            <p class="about-subtitle" data-i18n="about_modal_subtitle">The Ultimate Visual Control Panel for Windows Software & Modern WinGet GUI</p>
+          </div>
+        </div>
+        <button id="btn-close-about-modal" class="btn-modal-close" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body about-modal-body">
+        <!-- 5.4 Immediate Visibility: 100% Free Forever & Open Source Pledge -->
+        <div class="about-free-banner">
+          <div class="about-free-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          </div>
+          <div class="about-free-text">
+            <strong data-i18n="about_free_pledge">100% Free Forever & Open Source (GPLv3) — Zero Ads, Zero Telemetry, No Premium Tier.</strong>
+            <span data-i18n="about_free_sub">Built for the Windows community. All features are unlocked out of the box with 100% local execution.</span>
+          </div>
+        </div>
+
+        <!-- 5.3 Technical Solidity & Security Badges -->
+        <div class="about-trust-grid">
+          <div class="about-trust-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span data-i18n="about_badge_vt">VirusTotal 0/70 Clean</span>
+          </div>
+          <div class="about-trust-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span data-i18n="about_badge_sha">SHA-256 Verified Installers</span>
+          </div>
+          <div class="about-trust-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2.2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span data-i18n="about_badge_local">100% Local & Zero Tracking</span>
+          </div>
+        </div>
+
+        <!-- 5.2 Official Positioning FAQ: Why Exclusively WinGet instead of Chocolatey/Scoop? -->
+        <div class="about-faq-card">
+          <div class="about-faq-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <h4 data-i18n="about_faq_winget_q">Why does Wingetix exclusively use Microsoft WinGet instead of Chocolatey or Scoop?</h4>
+          </div>
+          <p class="about-faq-intro" data-i18n="about_faq_winget_intro">
+            Wingetix is engineered around a 100% native, zero-bloat architecture built exclusively on the official Microsoft Windows Package Manager (WinGet):
+          </p>
+          <ul class="about-faq-list">
+            <li>
+              <strong data-i18n="about_faq_p1_title">1. Native Windows 10 & 11 Integration:</strong>
+              <span data-i18n="about_faq_p1_desc">WinGet is built directly into modern Windows by Microsoft. It requires no external PowerShell execution policy overrides, third-party runtimes, or custom environment shims.</span>
+            </li>
+            <li>
+              <strong data-i18n="about_faq_p2_title">2. Direct Manufacturer CDNs & Cryptographic Security:</strong>
+              <span data-i18n="about_faq_p2_desc">Unlike third-party repositories that repackage binaries, WinGet downloads untouched setup files directly from the official developer servers (Microsoft, Valve, Mozilla, Google) validated by SHA-256 hashes and SmartScreen.</span>
+            </li>
+            <li>
+              <strong data-i18n="about_faq_p3_title">3. Zero Redundancy & Peak Performance:</strong>
+              <span data-i18n="about_faq_p3_desc">Focusing 100% on a single official engine prevents duplicate download caches, conflicting PATH variables, and background wrapper overhead.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-footer about-modal-footer">
+        <div class="about-footer-links">
+          <button id="btn-about-github" type="button" class="btn btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+            <span data-i18n="menu_github_repo">GitHub Repository</span>
+          </button>
+          <button id="btn-about-website" type="button" class="btn btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span data-i18n="btn_about_website">Official Website</span>
+          </button>
+        </div>
+        <button id="btn-about-close-footer" type="button" class="btn btn-primary btn-sm" data-i18n="btn_about_close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Platform Shield Configurable Whitelist (Deep Uninstaller v2) -->
+  <div id="modal-platform-shield" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shield-modal-title">
+    <div class="modal-card glass shield-modal-card">
+      <div class="modal-header about-modal-header">
+        <div class="about-header-brand">
+          <div class="shield-modal-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          </div>
+          <div>
+            <h3 id="shield-modal-title" class="modal-title" data-i18n="shield_modal_title">Platform Shield — Custom Whitelist</h3>
+            <p class="about-subtitle" data-i18n="shield_modal_subtitle">Protect custom folders, game libraries, or registry keys from ever being purged during deep uninstallation</p>
+          </div>
+        </div>
+        <button id="btn-close-shield-modal" class="btn-modal-close" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body shield-modal-body">
+        <!-- Core Built-in Protection Pills -->
+        <div class="shield-core-box">
+          <div class="shield-section-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span data-i18n="shield_core_heading">Built-in Core Protected Ecosystems (Always Active):</span>
+          </div>
+          <div class="shield-core-pills">
+            <span class="shield-core-pill">Steam &amp; steamapps</span>
+            <span class="shield-core-pill">Epic Games Launcher</span>
+            <span class="shield-core-pill">Riot Games &amp; Vanguard</span>
+            <span class="shield-core-pill">EA App / Origin</span>
+            <span class="shield-core-pill">Ubisoft Connect</span>
+            <span class="shield-core-pill">Blizzard Battle.net</span>
+            <span class="shield-core-pill">GOG Galaxy</span>
+            <span class="shield-core-pill">Windows System32 &amp; Drivers</span>
+          </div>
+        </div>
+
+        <!-- Add Custom Whitelist Rule -->
+        <div class="shield-add-box">
+          <label class="shield-section-label" for="input-shield-whitelist" data-i18n="shield_add_label">Add Custom Protected Folder Path or Keyword:</label>
+          <div class="shield-add-row">
+            <input type="text" id="input-shield-whitelist" class="bundle-name-input shield-input" data-i18n-placeholder="shield_input_placeholder" placeholder="e.g. D:\Games, ModOrganizer, NexusMods, OBS..." />
+            <button type="button" id="btn-shield-browse-folder" class="btn btn-ghost btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span data-i18n="btn_shield_browse">Browse Folder</span>
+            </button>
+            <button type="button" id="btn-shield-add-entry" class="btn btn-accent btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span data-i18n="btn_shield_add">Add</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Whitelist Items List -->
+        <div class="shield-custom-list-wrap">
+          <div class="shield-section-label">
+            <span data-i18n="shield_custom_list_heading">User-Configured Protected Entries:</span>
+            <span id="shield-modal-count" class="residuals-sub-count">0</span>
+          </div>
+          <div id="shield-custom-whitelist-list" class="shield-custom-list"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer about-modal-footer">
+        <span class="shield-footer-note" data-i18n="shield_footer_note">Saved automatically in settings.json</span>
+        <button id="btn-close-shield-footer" type="button" class="btn btn-primary btn-sm" data-i18n="btn_about_close">Close</button>
       </div>
     </div>
   </div>

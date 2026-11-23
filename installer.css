@@ -1,0 +1,845 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Wingetix v1.2.0 — Visual Glassmorphism Installer Engine
+   Design System 1:1 with wingetix.com
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --color-bg-base: #060a14;
+  --color-bg-card: rgba(11, 17, 30, 0.92);
+  --color-bg-secondary: #0d1424;
+  --color-bg-tertiary: #162035;
+  --color-surface: rgba(255, 255, 255, 0.07);
+  --color-surface-hover: rgba(255, 255, 255, 0.12);
+  --color-surface-active: rgba(255, 255, 255, 0.18);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+  --color-border-glow: rgba(110, 231, 183, 0.45);
+  
+  --color-primary: #4f8ef7;
+  --color-primary-hover: #38bdf8;
+  --color-primary-glow: rgba(56, 189, 248, 0.45);
+  
+  --color-accent: #6ee7b7;
+  --color-accent-dark: #10b981;
+  --color-accent-glow: rgba(110, 231, 183, 0.45);
+  
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
+  --color-success: #34d399;
+  
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent !important;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Window Container ────────────────────────────────────────────────────── */
+.installer-window {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #060b16;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 45px rgba(110, 231, 183, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Cosmic Background & Stars ───────────────────────────────────────────── */
+.space-background {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse 130% 90% at 50% -15%, #0d1a2d 0%, #060b16 48%, #03050a 100%);
+}
+
+.stars-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.stars-layer-1 {
+  background-image: 
+    radial-gradient(1px 1px at 28px 36px, rgba(255, 255, 255, 0.85), transparent),
+    radial-gradient(1.2px 1.2px at 85px 120px, rgba(167, 243, 208, 0.9), transparent),
+    radial-gradient(1px 1px at 160px 45px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.4px 1.4px at 225px 180px, rgba(125, 211, 252, 0.85), transparent),
+    radial-gradient(1px 1px at 310px 90px, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.2px 1.2px at 390px 240px, rgba(196, 181, 253, 0.75), transparent),
+    radial-gradient(1px 1px at 450px 70px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.4px 1.4px at 530px 195px, rgba(110, 231, 183, 0.85), transparent),
+    radial-gradient(1px 1px at 600px 310px, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.5px 1.5px at 680px 110px, rgba(56, 189, 248, 0.9), transparent);
+  background-size: 780px 380px;
+  opacity: 0.85;
+}
+
+.stars-layer-2 {
+  background-image: 
+    radial-gradient(1.6px 1.6px at 45px 95px, rgba(255, 255, 255, 0.95), transparent),
+    radial-gradient(2px 2px at 175px 230px, rgba(110, 231, 183, 0.9), rgba(110, 231, 183, 0.2) 3px, transparent),
+    radial-gradient(1.5px 1.5px at 325px 45px, rgba(56, 189, 248, 0.9), rgba(56, 189, 248, 0.2) 3px, transparent),
+    radial-gradient(2.2px 2.2px at 475px 290px, #ffffff, rgba(255, 255, 255, 0.3) 4px, transparent),
+    radial-gradient(1.8px 1.8px at 645px 275px, rgba(110, 231, 183, 0.85), transparent);
+  background-size: 890px 430px;
+  opacity: 0.7;
+}
+
+.nebula-cloud {
+  position: absolute;
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.nebula-cloud-mint {
+  top: -10%;
+  left: -10%;
+  width: 450px;
+  height: 450px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(110, 231, 183, 0.16) 0%, rgba(16, 185, 129, 0.05) 50%, transparent 75%);
+}
+
+.nebula-cloud-cyan {
+  bottom: -15%;
+  right: -10%;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(79, 142, 247, 0.06) 50%, transparent 75%);
+}
+
+/* ─── Custom Title Bar ────────────────────────────────────────────────────── */
+.installer-titlebar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 14px 0 18px;
+  background: rgba(6, 11, 22, 0.55);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.titlebar-drag-region {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+.titlebar-logo {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 6px rgba(110, 231, 183, 0.6));
+}
+
+.titlebar-title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+.titlebar-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(110, 231, 183, 0.12);
+  border: 1px solid rgba(110, 231, 183, 0.28);
+  color: var(--color-accent);
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.ctrl-close:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+/* ─── Screens Manager ─────────────────────────────────────────────────────── */
+.installer-content {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  padding: 24px 36px 30px;
+  overflow: hidden;
+}
+
+.installer-screen {
+  position: absolute;
+  inset: 24px 36px 30px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px) scale(0.98);
+  transition: opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.installer-screen.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+/* ─── Screen 1: Splash Hero ───────────────────────────────────────────────── */
+.splash-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.atomic-logo-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 110px;
+  margin-bottom: 18px;
+}
+
+.atomic-aura {
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(110, 231, 183, 0.45) 0%, rgba(56, 189, 248, 0.25) 50%, transparent 75%);
+  filter: blur(14px);
+  animation: pulseAura 3s ease-in-out infinite alternate;
+}
+
+.atomic-logo {
+  position: relative;
+  width: 95px;
+  height: 95px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(110, 231, 183, 0.65)) drop-shadow(0 0 35px rgba(56, 189, 248, 0.4));
+  animation: floatAtomic 4.5s ease-in-out infinite;
+}
+
+@keyframes floatAtomic {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+@keyframes pulseAura {
+  0% { transform: scale(0.92); opacity: 0.6; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+
+.splash-title {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  background: linear-gradient(135deg, #ffffff 40%, #6ee7b7 75%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 6px;
+}
+
+.splash-tagline {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  margin-bottom: 22px;
+  max-width: 480px;
+}
+
+.specs-pills-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.spec-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.spec-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-primary-glow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 30px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6ee7b7 0%, #38bdf8 100%);
+  color: #060b16;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(110, 231, 183, 0.35), 0 0 25px rgba(56, 189, 248, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary-glow:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(110, 231, 183, 0.5), 0 0 35px rgba(56, 189, 248, 0.4);
+}
+
+.btn-primary-glow:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* ─── Screen 2: Options (Glass Cards) ─────────────────────────────────────── */
+.options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.options-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mini-logo {
+  width: 38px;
+  height: 38px;
+  filter: drop-shadow(0 0 10px rgba(110, 231, 183, 0.5));
+}
+
+.options-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.options-subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.lang-selector-segmented {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.lang-flag-svg {
+  width: 18px;
+  height: 12px;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  display: block;
+}
+
+.lang-btn.active {
+  background: rgba(110, 231, 183, 0.18);
+  color: var(--color-accent);
+  box-shadow: 0 0 12px rgba(110, 231, 183, 0.25);
+}
+
+.glass-card {
+  background: rgba(13, 20, 36, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  cursor: pointer;
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.label-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.option-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.badge-recommended {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--color-primary-hover);
+  border-radius: 999px;
+}
+
+.option-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 15px 0;
+}
+
+/* ─── Modern Glass Toggle Switches ────────────────────────────────────────── */
+.switch-wrapper {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.glass-switch {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.switch-slider::before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-switch:checked + .switch-slider {
+  background: linear-gradient(135deg, #10b981 0%, #0284c7 100%);
+  border-color: rgba(110, 231, 183, 0.6);
+  box-shadow: 0 0 12px rgba(110, 231, 183, 0.4);
+}
+
+.glass-switch:checked + .switch-slider::before {
+  transform: translateX(20px);
+}
+
+/* ─── Path Selection ──────────────────────────────────────────────────────── */
+.path-selection-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.path-input-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.path-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  outline: none;
+}
+
+.btn-browse {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-browse:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.options-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+/* ─── Screen 3: Installation & Neon Progress ──────────────────────────────── */
+.installing-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.pulse-loader-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 90px;
+  margin-bottom: 20px;
+}
+
+.pulse-loader-ring::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: #6ee7b7;
+  border-right-color: #38bdf8;
+  animation: spinRing 1.4s linear infinite;
+}
+
+@keyframes spinRing {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ring-core {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  background: rgba(13, 20, 36, 0.85);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.ring-logo {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 0 10px rgba(110, 231, 183, 0.6));
+}
+
+.installing-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.install-status-msg {
+  font-size: 13px;
+  color: var(--color-accent);
+  margin-bottom: 24px;
+  font-weight: 500;
+  min-height: 20px;
+}
+
+.progress-container {
+  width: 100%;
+  max-width: 520px;
+  margin-bottom: 24px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6ee7b7 0%, #38bdf8 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(110, 231, 183, 0.7);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.progress-step-text {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.install-milestones {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.milestone-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  transition: all 0.25s ease;
+}
+
+.milestone-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.milestone-badge.in-progress {
+  color: var(--color-primary-hover);
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.milestone-badge.in-progress .milestone-dot {
+  background: var(--color-primary-hover);
+  box-shadow: 0 0 8px var(--color-primary-hover);
+}
+
+.milestone-badge.done {
+  color: var(--color-accent);
+  border-color: rgba(110, 231, 183, 0.4);
+  background: rgba(110, 231, 183, 0.1);
+}
+
+.milestone-badge.done .milestone-dot {
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+}
+
+/* ─── Screen 4: Completion ────────────────────────────────────────────────── */
+.finished-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+}
+
+.success-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 20px;
+}
+
+.success-aura {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(110, 231, 183, 0.45) 0%, transparent 70%);
+  filter: blur(14px);
+  animation: pulseAura 2.5s infinite alternate;
+}
+
+.success-circle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid rgba(110, 231, 183, 0.65);
+  box-shadow: 0 0 25px rgba(110, 231, 183, 0.45);
+  animation: popSuccess 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popSuccess {
+  0% { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.finished-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.finished-desc {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  max-width: 480px;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.btn-launch-glow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 38px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 17px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.45), 0 0 35px rgba(6, 182, 212, 0.35);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-launch-glow:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 12px 38px rgba(16, 185, 129, 0.6), 0 0 45px rgba(6, 182, 212, 0.5);
+}
+
+.btn-launch-glow:active {
+  transform: translateY(0) scale(0.99);
+}

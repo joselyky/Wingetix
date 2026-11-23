@@ -1,10 +1,10 @@
 {
   "name": "wingetix",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Panel de control para gestionar actualizaciones de software via winget",
   "main": "main.js",
   "author": "Wingetix",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
@@ -48,8 +48,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "include": "build/installer.nsh",
-      "multiLanguageInstaller": true
+      "include": "build/installer.nsh"
     },
     "extraResources": [
       {

@@ -1,7 +1,7 @@
 # 📖 Wingetix — Complete Technical & User Documentation
 
 > **Wingetix: The Ultimate Open-Source Visual Control Panel & Software Manager for Windows 10 & 11**  
-> *Version: 1.1.1 (Roadmap: 1.2.0) | License: GNU General Public License v3 (GPLv3)*
+> *Version: 1.2.0 | License: GNU General Public License v3 (GPLv3)*
 
 ---
 

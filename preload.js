@@ -4,11 +4,13 @@
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  // Window controls
+const api = {
+  // Window controls, Taskbar Progress & Native OS Notifications
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   closeWindow:    () => ipcRenderer.send('window:close'),
+  setTaskbarProgress: (value, mode = 'normal') => ipcRenderer.send('window:set-progress', { value, mode }),
+  sendNativeNotification: (title, body, silent = false) => ipcRenderer.send('app:notify', { title, body, silent }),
 
   // WinGet operations
   listUpgrades:             ()    => ipcRenderer.invoke('winget:list-upgrades'),
@@ -16,8 +18,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   upgradeAll:               ()    => ipcRenderer.send('winget:upgrade-all'),
   cancelUpgrade:            ()    => ipcRenderer.send('winget:cancel-upgrade'),
   enableWinGetInTerminal:   ()    => ipcRenderer.invoke('winget:enable-in-terminal'),
+  checkWinGetStatus:        ()    => ipcRenderer.invoke('winget:check-status'),
   exportPackages:           ()    => ipcRenderer.invoke('winget:export-packages'),
   importPackages:           ()    => ipcRenderer.invoke('winget:import-packages'),
+
+  // Software Packs / Bundle Studio
+  bundlesSavePack:          (packData) => ipcRenderer.invoke('bundles:save-pack', packData),
+  bundlesLoadPack:          ()         => ipcRenderer.invoke('bundles:load-pack'),
+  bundlesInstallPack:       (packages) => ipcRenderer.send('bundles:install-pack', packages),
+  bundlesCancelInstall:     ()         => ipcRenderer.send('bundles:cancel-install'),
+  onBundleInstallProgress:  (cb)       => ipcRenderer.on('bundles:install-progress', (_e, data) => cb(data)),
+  onBundleInstallDone:      (cb)       => ipcRenderer.on('bundles:install-done', (_e, data) => cb(data)),
 
   // WinGet Pinning / Pausing operations
   listPinned:               ()    => ipcRenderer.invoke('winget:pin-list'),
@@ -34,11 +45,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Remove listeners (cleanup)
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
 
-  // System info
+  // System info & Zero-Footprint Portable Settings (.\data\settings.json)
   getSystemInfo: () => ipcRenderer.invoke('system:info'),
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  saveSettings: (partial) => ipcRenderer.invoke('settings:save', partial),
+  openDataFolder: () => ipcRenderer.invoke('settings:open-data-folder'),
 
-  // Clean Uninstaller
+  // Clean Uninstaller & Deep Uninstaller v2 (Residual Preview + Platform Shield Whitelist)
   listInstalledApps: () => ipcRenderer.invoke('apps:list-installed'),
+  previewUninstallResiduals: (apps) => ipcRenderer.invoke('apps:preview-residuals', apps),
+  getPlatformShieldWhitelist: () => ipcRenderer.invoke('shield:get-whitelist'),
+  savePlatformShieldWhitelist: (list) => ipcRenderer.invoke('shield:save-whitelist', list),
+  pickShieldFolder: () => ipcRenderer.invoke('shield:pick-folder'),
   uninstallAppClean: (app) => ipcRenderer.send('apps:uninstall-clean', app),
   cancelUninstall: () => ipcRenderer.send('apps:cancel-uninstall'),
   forceProceedCleanup: () => ipcRenderer.send('apps:force-proceed-cleanup'),
@@ -80,4 +98,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('app:get-version'),
   openExternalUrl: (url) => ipcRenderer.invoke('app:open-external', url),
   getInstallerLanguage: () => ipcRenderer.invoke('app:get-installer-language'),
-});
+
+  // Software Packs (Bundles)
+  bundlesSavePack: (packData) => ipcRenderer.invoke('bundles:save-pack', packData),
+  bundlesLoadPack: () => ipcRenderer.invoke('bundles:load-pack'),
+  bundlesInstallPack: (packages) => ipcRenderer.send('bundles:install-pack', packages),
+  bundlesCancelInstall: () => ipcRenderer.send('bundles:cancel-install'),
+  onBundleInstallProgress: (cb) => ipcRenderer.on('bundles:install-progress', (_e, data) => cb(data)),
+  onBundleInstallDone: (cb) => ipcRenderer.on('bundles:install-done', (_e, data) => cb(data)),
+
+  // Visual Glassmorphism Installer APIs
+  installerGetInfo: () => ipcRenderer.invoke('installer:get-info'),
+  installerSelectPath: () => ipcRenderer.invoke('installer:select-path'),
+  installerStartInstall: (options) => ipcRenderer.send('installer:run-install', options),
+  onInstallerProgress: (cb) => ipcRenderer.on('installer:progress', (_e, data) => cb(data)),
+  onInstallerDone: (cb) => ipcRenderer.on('installer:done', (_e, data) => cb(data)),
+  installerLaunchApp: () => ipcRenderer.send('installer:launch-app'),
+  installerClose: () => ipcRenderer.send('installer:close'),
+  installerMinimize: () => ipcRenderer.send('installer:minimize'),
+};
+
+contextBridge.exposeInMainWorld('electronAPI', api);
+contextBridge.exposeInMainWorld('wingetAPI', api);

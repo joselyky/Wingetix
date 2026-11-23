@@ -1,5 +1,9 @@
 <div align="center">
 
+  > **100% Free Forever & Open Source (GPLv3) — Zero Ads, Zero Telemetry, No Premium Tier.**
+
+  <br />
+
   <img src="logo.png" alt="Wingetix Logo" width="120" height="120" style="border-radius: 50%; box-shadow: 0 8px 32px rgba(110, 231, 183, 0.4);" />
 
   # Wingetix
@@ -9,6 +13,8 @@
   [![GitHub Release](https://img.shields.io/github/v/release/joselyky/Wingetix?color=6ee7b7&label=Release&style=for-the-badge)](https://github.com/joselyky/Wingetix/releases/latest)
   [![GitHub Downloads](https://img.shields.io/github/downloads/joselyky/Wingetix/total?color=38bdf8&label=Downloads&style=for-the-badge&logo=github)](https://github.com/joselyky/Wingetix/releases)
   [![GitHub Stars](https://img.shields.io/github/stars/joselyky/Wingetix?style=for-the-badge&color=fbbf24&logo=github)](https://github.com/joselyky/Wingetix/stargazers)
+  [![VirusTotal](https://img.shields.io/badge/VirusTotal-0%2F70%20Clean-10b981?style=for-the-badge&logo=virustotal&logoColor=white)](https://github.com/joselyky/Wingetix/releases/latest)
+  [![Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Ads%20%7C%20Zero%20Telemetry-8b5cf6?style=for-the-badge)](#-security-trust--guaranteed-privacy)
   [![AlternativeTo](https://img.shields.io/badge/AlternativeTo-Vote%20for%20Wingetix-0072C6?style=for-the-badge&logo=alternativeto&logoColor=white)](https://alternativeto.net/software/wingetix/)
   [![Website](https://img.shields.io/badge/Website-wingetix.com-10b981?style=for-the-badge&logo=googlechrome&logoColor=white)](https://wingetix.com)
   [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d4?style=for-the-badge&logo=windows)](https://github.com/joselyky/Wingetix)
@@ -177,7 +183,18 @@ Wingetix is engineered under a **zero-malware tolerance, full transparency, and 
 - 🌐 **Zero Middlemen:** Binaries are fetched directly from official developer CDNs and Microsoft infrastructure (no repackaged installers).
 - 🛡️ **Explicit User Consent:** Nothing updates or deletes silently in the background. Every action requires your explicit confirmation.
 - 💻 **100% Local Execution:** No user accounts, no passwords collected, and no analytics harvesting. Everything runs locally on your PC.
+- ✅ **VirusTotal 0/70 Clean & Auditable:** All release binaries pass 70+ antivirus engines on VirusTotal with zero detections and verifiable SHA-256 checksums.
 - 📜 **GNU GPLv3 Open Source:** All source code is completely public and auditable by the community.
+
+---
+
+## ❓ Why Exclusively Microsoft WinGet (Instead of Chocolatey or Scoop)?
+
+A common question from the community is why Wingetix is purpose-built around **Microsoft WinGet** rather than bundling third-party package managers like Chocolatey or Scoop:
+
+1. **100% Native Windows 10 & 11 Engine:** `winget` is engineered and maintained directly by Microsoft as part of modern Windows. It requires zero third-party frameworks, no custom environment shims, and no relaxing of global PowerShell execution policies.
+2. **Direct Manufacturer CDNs & Cryptographic Trust:** Unlike third-party community repositories that repackage binaries on intermediate mirrors, WinGet fetches untouched installers directly from the software publisher's official servers (Microsoft, Valve, Mozilla, Google, etc.) and verifies every binary against cryptographic **SHA-256 hashes** and Microsoft SmartScreen.
+3. **Zero System Bloat & Single-Engine Purity:** Maintaining a single official package engine eliminates duplicate download caches, conflicting `PATH` variables, and background wrapper daemons—delivering maximum speed with zero footprint.
 
 ---
 
@@ -189,7 +206,8 @@ Wingetix is engineered under a **zero-malware tolerance, full transparency, and 
 | **Clean Uninstaller** | 🗑️ | Detailed software registry with deep leftover folder and registry key cleaner. |
 | **Storage Cleaner** | 🧹 | Scan and purge installer caches, temporary setup files, and crash dumps. |
 | **Package Pinning** | 📌 | Freeze versions and exclude specific packages from update notifications. |
-| **GPU Telemetry** | 🎮 | Live hardware monitor for GPU thermals, VRAM usage, and driver links. |
+| **GPU Telemetry** | 🎮 | Live Multi-GPU hardware monitor (Dedicated & Integrated selector), thermals, VRAM, and driver suites. |
+| **Software Packs** | 📦 | Create, export, and deploy custom `.wingetix` software bundles in 1 click across PCs. |
 | **Restore Points** | 💾 | Create and manage native Windows System Restore snapshots (`rstrui.exe`). |
 | **Auto-Updater** | 🚀 | Seamlessly downloads and applies new official releases from GitHub. |
 
@@ -203,13 +221,13 @@ winget install wingetix
 ```
 
 ### Option 2: Guided Installer (.exe) — Recommended
-Download **`Wingetix.Setup.1.1.1.exe`** from [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest) or [**wingetix.com**](https://wingetix.com).
+Download **`Wingetix.Setup.1.2.0.exe`** from [**GitHub Releases**](https://github.com/joselyky/Wingetix/releases/latest) or [**wingetix.com**](https://wingetix.com).
 - Guided setup wizard with desktop shortcut creation.
 - Automatically configures `winget` in your terminal if absent.
 - Full clean uninstallation support from the Windows Control Panel.
 
-### Option 3: Portable Standalone (.exe)
-Download **`Wingetix.1.1.1.exe`** for standalone execution without installation (ideal for IT maintenance flash drives).
+### Option 3: Portable Standalone (.exe) — Zero-Footprint USB
+Download **`Wingetix.1.2.0.exe`** for standalone execution without installation (stores settings in `.\data\settings.json` with zero `%APPDATA%` footprint—ideal for IT maintenance flash drives).
 
 ---
 
