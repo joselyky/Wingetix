@@ -4,20 +4,28 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
 
 ---
 
-## 🚨 1. PRIORIDAD CRÍTICA: Autodetección y Asistente de Activación de WinGet en 1 Clic
-> **Problema reportado:** Muchos usuarios (en Windows 10 LTSC, Windows 11 Enterprise, equipos recién formateados o sin Microsoft Store) **no tienen WinGet activado ni instalado de fábrica**. Al abrir Wingetix, la app no carga programas o da error, y el usuario piensa que la app no funciona. Además, la versión Portable nunca ejecuta el instalador.
+## 🚨 1. PRIORIDAD CRÍTICA: Compatibilidad Total con Windows 10 y Resolución de WinGet
+> **Problema reportado en Reddit:** *"La app no funciona en Windows 10"*.
 
-### Solución a implementar en v1.2.0:
-1. **Comprobación en el Arranque de la App (`main.js` -> `renderer.js`):**
-   - Comprobación rápida al iniciar: `winget --version`.
-   - Si no existe: pantalla de bienvenida moderna:
-     > **"¡Casi listo! Necesitamos activar el motor de Microsoft WinGet"**
-     > **[ ⚡ Activar e Instalar WinGet Automáticamente (1 Clic) ]**
-2. **Proceso de Instalación Visual con Barra de Progreso:**
-   - Descarga en segundo plano de dependencias oficiales (`VCLibs`, `UI.Xaml`) y `Microsoft.DesktopAppInstaller.msixbundle`.
-   - Barra de progreso real: *"Descargando motor oficial... (60%)"*, *"Registrando servicio en Windows..."*.
-3. **Refuerzo en el Instalador (`Wingetix-Setup.iss`):**
-   - Quitar `Flags: runhidden` para que muestre el progreso de activación con un mensaje claro.
+### Causa técnica identificada del fallo en Windows 10:
+1. **El bug de los "App Execution Aliases" elevados en Windows 10:**
+   - Wingetix se ejecuta con permisos de Administrador (`requireAdministrator`).
+   - En **Windows 10**, el subsistema UAC bloquea o no resuelve los alias de ejecución de la tienda (`%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe`) cuando un proceso corre con privilegios elevados. (Windows 11 corrigió esto internamente, pero Windows 10 falla con *"Acceso denegado"* o *"El sistema no puede encontrar el archivo"*).
+   - Por esta razón, comandos directos `spawn('winget', ..., { shell: false })` fallan en Windows 10 con error `ENOENT`.
+2. **WinGet no viene de serie en muchas ediciones de Windows 10:**
+   - Windows 10 LTSC, Enterprise, o usuarios que no actualizan la Microsoft Store no tienen `winget.exe` en su sistema.
+   - Sin el motor, la app queda congelada o no muestra ningún paquete.
+
+### Solución técnica a implementar en v1.2.0 para Windows 10:
+1. **Resolución de la ruta binaria real en `buildEnv()` (`main.js`):**
+   - No depender solo del alias simbólico de `WindowsApps`.
+   - Localizar la ruta física del ejecutable real en:
+     `C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe`.
+   - Inyectar esta carpeta directamente en la variable `PATH` del entorno en `buildEnv()`.
+2. **Uso consistente de `shell: true` o envoltura en `cmd.exe /c`:**
+   - Unificar todas las llamadas de `spawn('winget')` para que ninguna use `shell: false`, permitiendo a `cmd.exe` resolver el comando sin restricciones en Windows 10.
+3. **Asistente de Autodetección y Activación de WinGet:**
+   - Si Windows 10 no tiene WinGet instalado, mostrar la pantalla de activación en 1 clic que descarga e instala `Microsoft.DesktopAppInstaller` y sus dependencias (`VCLibs` y `UI.Xaml`).
 
 ---
 
@@ -55,13 +63,11 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
 
 ### 4.2 Posicionamiento Oficial: ¿Por qué WinGet y no Chocolatey/Scoop?
 * **Reporte:** `u/TomHale` preguntó por soporte para `choco` y `scoop`.
-* **Decisión:** Mantener el enfoque 100% nativo y seguro sobre Microsoft WinGet (sin dependencias de terceros ni consumo de recursos en segundo plano), y añadir una sección clara en la FAQ de la web y de la app explicando esta ventaja.
+* **Decisión:** Mantener el enfoque 100% nativo y seguro sobre Microsoft WinGet, y añadir una sección clara en la FAQ de la web y de la app explicando esta ventaja.
 
 ### 4.3 Demostración de Solidez Técnica y Transparencia
-* **Reporte:** `u/smoke-bubble` (*escepticismo ante proyectos nuevos o sospechas de IA sin pruebas*).
-* **Acción:** 
-  - Añadir demostraciones visuales (GIFs/clips cortos de 5 segundos) en `README.md` mostrando la app funcionando en vivo (desinstalación silenciosa, protección de Platform Shield y puntos de restauración).
-  - Insignias visibles de análisis de seguridad (**VirusTotal 0/70 limpio**).
+* **Reporte:** `u/smoke-bubble` (*escepticismo ante proyectos nuevos*).
+* **Acción:** Añadir demostraciones visuales (GIFs/clips) en `README.md` mostrando la app funcionando en vivo e insignia de **VirusTotal 0/70 limpio**.
 
 ### 4.4 Visibilidad Inmediata: 100% Gratis, Sin Anuncios y Sin Telemetría
 * **Reporte:** `u/gvcggff` (*pereza para leer GitHub o la web*).
@@ -69,7 +75,7 @@ Documento de planificación y notas técnicas para la próxima versión de **Win
   > **100% Free Forever & Open Source (GPLv3) — Zero Ads, Zero Telemetry, No Premium Tier.**
 
 ### 4.5 Guía de Colaboración Comunitaria (`CONTRIBUTING.md`)
-* **Acción:** Publicar `CONTRIBUTING.md` en GitHub con pautas para que la comunidad pueda enviar sugerencias de traducción o reportes de bugs de forma ordenada, siempre con aprobación y revisión manual del creador.
+* **Estado:** Ya redactada, integrada y publicada en GitHub.
 
 ---
 
