@@ -488,7 +488,8 @@ ipcMain.on('installer:close', () => {
 });
 
 ipcMain.handle('installer:get-info', async () => {
-  const defaultDir = process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Wingetix') : 'C:\\Program Files\\Wingetix';
+  const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const defaultDir = path.join(localAppData, 'Programs', 'Wingetix');
   return {
     defaultPath: defaultDir,
     systemLang: 'en',
@@ -507,6 +508,24 @@ ipcMain.handle('installer:select-path', async () => {
   }
   return null;
 });
+
+function resolveInstallerSourceDir() {
+  const execDir = path.dirname(process.execPath);
+  if (fs.existsSync(path.join(execDir, 'Wingetix.exe'))) {
+    return execDir;
+  }
+  // Fallback if launched via electron.exe in development workspace
+  const candidates = [
+    path.join(__dirname, '..', '..'),
+    path.join(__dirname, 'Wingetix-win32-x64')
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'Wingetix.exe'))) {
+      return c;
+    }
+  }
+  return execDir;
+}
 
 async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
   const skipNames = new Set([
@@ -560,7 +579,9 @@ async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
 }
 
 ipcMain.on('installer:run-install', async (event, config) => {
-  const targetDir = config.targetPath || path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Wingetix');
+  const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const fallbackUserDir = path.join(localAppData, 'Programs', 'Wingetix');
+  const targetDir = config.targetPath || fallbackUserDir;
   const lang = config.lang || 'en';
   const createDesktop = !!config.createDesktopShortcut;
   const enableWinget = !!config.enableWinget;
@@ -591,7 +612,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
       canWriteDirectly = false;
     }
 
-    const appSourceDir = path.dirname(process.execPath);
+    const appSourceDir = resolveInstallerSourceDir();
     const isSameDir = path.resolve(appSourceDir).toLowerCase() === path.resolve(finalTargetDir).toLowerCase();
 
     if (!isSameDir) {
@@ -607,18 +628,18 @@ ipcMain.on('installer:run-install', async (event, config) => {
         // Target directory requires Administrator permissions (e.g. C:\Program Files\Wingetix)
         sendProgress(25, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
         const elevatedCopyScript = `
-          $src = "${appSourceDir.replace(/\\/g, '\\\\')}"
-          $dst = "${finalTargetDir.replace(/\\/g, '\\\\')}"
+          $src = '${appSourceDir.replace(/'/g, "''")}'
+          $dst = '${finalTargetDir.replace(/'/g, "''")}'
           if (!(Test-Path -LiteralPath $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
           Get-ChildItem -LiteralPath $src -Force | Where-Object { $_.Name -notin @('installer_mode.txt','app-unpacked','data','release-output','installer-output','dist','node_modules','.git') } | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $dst -Recurse -Force -ErrorAction SilentlyContinue
           }
-          $resDir = Join-Path $dst "resources"
+          $resDir = Join-Path $dst 'resources'
           if (!(Test-Path -LiteralPath $resDir)) { New-Item -ItemType Directory -Path $resDir -Force | Out-Null }
-          [System.IO.File]::WriteAllText((Join-Path $resDir "installed_mode.txt"), "installed", [System.Text.Encoding]::UTF8)
-          [System.IO.File]::WriteAllText((Join-Path $resDir "installed_lang.txt"), "${lang}", [System.Text.Encoding]::UTF8)
-          Remove-Item -LiteralPath (Join-Path $resDir "installer_mode.txt") -Force -ErrorAction SilentlyContinue
-          Remove-Item -LiteralPath (Join-Path $resDir "scripts\\installer_mode.txt") -Force -ErrorAction SilentlyContinue
+          [System.IO.File]::WriteAllText((Join-Path $resDir 'installed_mode.txt'), 'installed', [System.Text.Encoding]::UTF8)
+          [System.IO.File]::WriteAllText((Join-Path $resDir 'installed_lang.txt'), '${lang}', [System.Text.Encoding]::UTF8)
+          Remove-Item -LiteralPath (Join-Path $resDir 'installer_mode.txt') -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $resDir 'scripts\\installer_mode.txt') -Force -ErrorAction SilentlyContinue
         `;
         const encodedCmd = Buffer.from(elevatedCopyScript, 'utf16le').toString('base64');
         const elevatedOk = await new Promise((resolve) => {
@@ -632,7 +653,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
 
         if (!elevatedOk) {
           // Seamless fallback to standard user Programs directory (%LOCALAPPDATA%\Programs\Wingetix)
-          finalTargetDir = path.join(process.env.LOCALAPPDATA || os.homedir(), 'Programs', 'Wingetix');
+          finalTargetDir = fallbackUserDir;
           lastInstalledTargetDir = finalTargetDir;
           if (!fs.existsSync(finalTargetDir)) {
             fs.mkdirSync(finalTargetDir, { recursive: true });
@@ -649,6 +670,15 @@ ipcMain.on('installer:run-install', async (event, config) => {
     } else {
       sendProgress(35, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
       await new Promise(r => setTimeout(r, 350));
+    }
+
+    // Verify Wingetix.exe exists in finalTargetDir; if not, fallback to user Programs directory
+    if (!fs.existsSync(path.join(finalTargetDir, 'Wingetix.exe')) && finalTargetDir !== fallbackUserDir) {
+      finalTargetDir = fallbackUserDir;
+      if (!fs.existsSync(finalTargetDir)) {
+        fs.mkdirSync(finalTargetDir, { recursive: true });
+      }
+      await copyAppRuntimeToTarget(appSourceDir, finalTargetDir);
     }
 
     lastInstalledTargetDir = finalTargetDir;
@@ -689,16 +719,16 @@ ipcMain.on('installer:run-install', async (event, config) => {
     sendProgress(80, lang === 'es' ? 'Creando accesos directos y registrando... (90%)' : 'Creating shortcuts and registering... (90%)', 'shortcuts');
 
     const targetExe = path.join(finalTargetDir, 'Wingetix.exe');
-    const exePathForShortcut = fs.existsSync(targetExe) ? targetExe : process.execPath;
+    const exePathForShortcut = fs.existsSync(targetExe) ? targetExe : path.join(appSourceDir, 'Wingetix.exe');
 
     let shortcutPsScript = '';
     if (createDesktop) {
       shortcutPsScript += `
         $desktop = [Environment]::GetFolderPath('Desktop')
         $s1 = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\\Wingetix.lnk")
-        $s1.TargetPath = "${exePathForShortcut.replace(/\\/g, '\\\\')}"
-        $s1.WorkingDirectory = "${finalTargetDir.replace(/\\/g, '\\\\')}"
-        $s1.Description = "Wingetix - Visual Control Panel"
+        $s1.TargetPath = '${exePathForShortcut.replace(/'/g, "''")}'
+        $s1.WorkingDirectory = '${finalTargetDir.replace(/'/g, "''")}'
+        $s1.Description = 'Wingetix - Visual Control Panel'
         $s1.Save()
       `;
     }
@@ -706,9 +736,9 @@ ipcMain.on('installer:run-install', async (event, config) => {
     shortcutPsScript += `
       $startMenu = [Environment]::GetFolderPath('Programs')
       $s2 = (New-Object -COM WScript.Shell).CreateShortcut("$startMenu\\Wingetix.lnk")
-      $s2.TargetPath = "${exePathForShortcut.replace(/\\/g, '\\\\')}"
-      $s2.WorkingDirectory = "${finalTargetDir.replace(/\\/g, '\\\\')}"
-      $s2.Description = "Wingetix - Visual Control Panel"
+      $s2.TargetPath = '${exePathForShortcut.replace(/'/g, "''")}'
+      $s2.WorkingDirectory = '${finalTargetDir.replace(/'/g, "''")}'
+      $s2.Description = 'Wingetix - Visual Control Panel'
       $s2.Save()
     `;
 
@@ -726,14 +756,14 @@ ipcMain.on('installer:run-install', async (event, config) => {
     // Registry Uninstall entry
     try {
       const regCmd = `
-        $regPath = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wingetix"
+        $regPath = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wingetix'
         if (!(Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
-        Set-ItemProperty -Path $regPath -Name "DisplayName" -Value "Wingetix" -Force
-        Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value "1.2.0" -Force
-        Set-ItemProperty -Path $regPath -Name "Publisher" -Value "Wingetix" -Force
-        Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value "${finalTargetDir.replace(/\\/g, '\\\\')}" -Force
-        Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "${exePathForShortcut.replace(/\\/g, '\\\\')},0" -Force
-        Set-ItemProperty -Path $regPath -Name "UninstallString" -Value "\\"${exePathForShortcut.replace(/\\/g, '\\\\')}\\" --uninstall" -Force
+        Set-ItemProperty -Path $regPath -Name 'DisplayName' -Value 'Wingetix' -Force
+        Set-ItemProperty -Path $regPath -Name 'DisplayVersion' -Value '1.2.0' -Force
+        Set-ItemProperty -Path $regPath -Name 'Publisher' -Value 'Wingetix' -Force
+        Set-ItemProperty -Path $regPath -Name 'InstallLocation' -Value '${finalTargetDir.replace(/'/g, "''")}' -Force
+        Set-ItemProperty -Path $regPath -Name 'DisplayIcon' -Value '${exePathForShortcut.replace(/'/g, "''")},0' -Force
+        Set-ItemProperty -Path $regPath -Name 'UninstallString' -Value '"${exePathForShortcut.replace(/'/g, "''")}" --uninstall' -Force
       `;
       const psReg = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', regCmd], { windowsHide: true });
       psReg.on('close', () => {});
@@ -766,21 +796,74 @@ ipcMain.on('installer:run-install', async (event, config) => {
 });
 
 ipcMain.on('installer:launch-app', () => {
-  const targetDir = lastInstalledTargetDir || (process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Wingetix') : 'C:\\Program Files\\Wingetix');
-  const targetExe = path.join(targetDir, 'Wingetix.exe');
-  const exeToRun = fs.existsSync(targetExe) ? targetExe : process.execPath;
-  
-  try {
-    spawn(exeToRun, ['--app-mode', `--lang=${lastInstalledLang || 'en'}`], {
-      cwd: fs.existsSync(targetDir) ? targetDir : path.dirname(exeToRun),
-      detached: true,
-      stdio: 'ignore'
-    }).unref();
-  } catch (err) {
-    console.error('[Installer] Failed to launch Wingetix:', err);
+  const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+  const defaultUserDir = path.join(localAppData, 'Programs', 'Wingetix');
+  const progFilesDir = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Wingetix');
+
+  let exeToRun = null;
+  const candidateDirs = [
+    lastInstalledTargetDir,
+    defaultUserDir,
+    progFilesDir,
+    resolveInstallerSourceDir()
+  ].filter(Boolean);
+
+  for (const dir of candidateDirs) {
+    const candidateExe = path.join(dir, 'Wingetix.exe');
+    if (fs.existsSync(candidateExe)) {
+      exeToRun = candidateExe;
+      break;
+    }
   }
-  
-  app.quit();
+
+  if (!exeToRun) {
+    exeToRun = process.execPath;
+  }
+
+  // Hide the installer window immediately for instant visual feedback
+  try {
+    if (installerWindow && !installerWindow.isDestroyed()) {
+      installerWindow.hide();
+    }
+  } catch (_) {}
+
+  // Strip portable / node environment variables inherited from the Setup wrapper
+  // so the installed Wingetix.exe boots cleanly into main application mode.
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.ELECTRON_RUN_AS_NODE;
+  delete cleanEnv.PORTABLE_EXECUTABLE_FILE;
+  delete cleanEnv.PORTABLE_EXECUTABLE_DIR;
+  delete cleanEnv.PORTABLE_EXECUTABLE_APP_FILENAME;
+
+  const workDir = path.dirname(exeToRun);
+  const langArg = `--lang=${lastInstalledLang || 'en'}`;
+
+  try {
+    const child = spawn(exeToRun, ['--app-mode', langArg], {
+      cwd: workDir,
+      env: cleanEnv,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: false
+    });
+    child.unref();
+  } catch (err) {
+    console.error('[Installer] Direct spawn failed, trying cmd start:', err);
+    try {
+      spawn('cmd.exe', ['/c', 'start', '""', exeToRun, '--app-mode', langArg], {
+        cwd: workDir,
+        env: cleanEnv,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true
+      }).unref();
+    } catch (_) {}
+  }
+
+  // Give Windows 650ms to initialize the detached child process before closing the installer
+  setTimeout(() => {
+    app.quit();
+  }, 650);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

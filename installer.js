@@ -270,12 +270,8 @@
         if (info.defaultPath) {
           inputInstallPath.value = info.defaultPath;
         }
-      } else {
-        inputInstallPath.value = 'C:\\Program Files\\Wingetix';
       }
-    } catch (_) {
-      inputInstallPath.value = 'C:\\Program Files\\Wingetix';
-    }
+    } catch (_) {}
   }
 
   init();

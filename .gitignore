@@ -2,3 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.log
+
+release-output/
+installer-output/
+dist/
+

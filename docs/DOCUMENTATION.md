@@ -1,4 +1,4 @@
-# 📖 Wingetix — Complete Technical & User Documentation
+﻿# 📖 Wingetix — Complete Technical & User Documentation
 
 > **Wingetix: The Ultimate Open-Source Visual Control Panel & Software Manager for Windows 10 & 11**  
 > *Version: 1.2.0 | License: GNU General Public License v3 (GPLv3)*  
@@ -262,8 +262,8 @@ npm run build
 ### Official v1.2.0 Release Artifacts & SHA-256 Checksums:
 | Artifact | Type | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- |
-| **`Wingetix.Setup.1.2.0.exe`** | Official Windows 10/11 Installer | `74.1 MB` | `FAE263773681F2F4877106A1B105771AE7EBEA98984FC7B52D4ED77736CF40A1` |
-| **`Wingetix.1.2.0.exe`** | Zero-Footprint USB Portable | `73.9 MB` | `C8263A503D8EB136EAB05E9293977BC693002D907579823EDD6901DCBE0A312E` |
+| **`Wingetix.Setup.1.2.0.exe`** | Official Windows 10/11 Installer | `74.1 MB` | `9495641EFAE1B62A5D37AFB59D1C45A0520F871A90C1E4D9776FE94DFBBBEEF2` |
+| **`Wingetix.1.2.0.exe`** | Zero-Footprint USB Portable | `73.9 MB` | `CEAA7EAE9FD438D349FD754D3F5A8B9C72F4E649A7AC06ADB4412E313AA1396A` |
 
 ---
 

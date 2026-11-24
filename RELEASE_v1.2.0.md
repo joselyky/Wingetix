@@ -1,4 +1,4 @@
-# Wingetix v1.2.0 🚀
+﻿# Wingetix v1.2.0 🚀
 
 > **100% Free Forever & Open Source (GPLv3) — Zero Ads, Zero Telemetry, No Premium Tier.**
 
@@ -39,8 +39,8 @@
 
 | Archivo | Tipo | SHA-256 Checksum |
 | :--- | :--- | :--- |
-| `Wingetix.Setup.1.2.0.exe` / `Wingetix Setup 1.2.0.exe` | Instalador Oficial (Recomendado) | `FAE263773681F2F4877106A1B105771AE7EBEA98984FC7B52D4ED77736CF40A1` |
-| `Wingetix.1.2.0.exe` / `Wingetix 1.2.0.exe` | Portable Zero-Footprint USB | `C8263A503D8EB136EAB05E9293977BC693002D907579823EDD6901DCBE0A312E` |
+| `Wingetix.Setup.1.2.0.exe` / `Wingetix Setup 1.2.0.exe` | Instalador Oficial (Recomendado) | `9495641EFAE1B62A5D37AFB59D1C45A0520F871A90C1E4D9776FE94DFBBBEEF2` |
+| `Wingetix.1.2.0.exe` / `Wingetix 1.2.0.exe` | Portable Zero-Footprint USB | `CEAA7EAE9FD438D349FD754D3F5A8B9C72F4E649A7AC06ADB4412E313AA1396A` |
 
 ### 📋 Descripción de Archivos
 
