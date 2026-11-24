@@ -15,6 +15,39 @@ try {
 let mainWindow;
 const isDev = process.argv.includes('--dev');
 
+// ─── Visual Glassmorphism Installer & Uninstaller Mode Detection ─────────────
+function detectInstallerMode() {
+  if (process.argv.includes('--app-mode') || process.argv.includes('--uninstall')) {
+    return false;
+  }
+  if (process.argv.includes('--installer') || process.argv.includes('--setup')) {
+    return true;
+  }
+  try {
+    const resDir = process.resourcesPath || path.join(path.dirname(process.execPath), 'resources');
+    if (fs.existsSync(path.join(resDir, 'installed_mode.txt'))) {
+      return false;
+    }
+    if (
+      fs.existsSync(path.join(resDir, 'installer_mode.txt')) ||
+      fs.existsSync(path.join(resDir, 'scripts', 'installer_mode.txt'))
+    ) {
+      return true;
+    }
+  } catch (_) {}
+
+  const outerExe = path.basename(process.env.PORTABLE_EXECUTABLE_FILE || process.execPath || '').toLowerCase();
+  if (outerExe.includes('setup') || outerExe.includes('installer') || outerExe.includes('instalador')) {
+    return true;
+  }
+  return false;
+}
+
+let isInstallerMode = detectInstallerMode();
+let installerWindow = null;
+let lastInstalledTargetDir = null;
+let lastInstalledLang = 'en';
+
 // ─── Zero-Footprint USB Portable Mode & .\data\settings.json Engine ───────────
 // When executed from a USB flash drive or standalone portable directory (outside
 // Program Files, or when .\data / portable.txt / --portable is present), Wingetix
@@ -36,8 +69,18 @@ const portableBaseDir = resolvePortableBaseDir();
 const portableDataDir = path.join(portableBaseDir, 'data');
 
 function detectPortableMode() {
+  if (isInstallerMode || process.argv.includes('--uninstall')) {
+    return false;
+  }
   try {
-    if (process.argv.includes('--portable') || process.env.PORTABLE_EXECUTABLE_DIR) {
+    if (process.argv.includes('--portable')) {
+      return true;
+    }
+    const resDir = process.resourcesPath || path.join(path.dirname(process.execPath), 'resources');
+    if (fs.existsSync(path.join(resDir, 'installed_mode.txt'))) {
+      return false;
+    }
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
       return true;
     }
     if (
@@ -306,9 +349,6 @@ function createWindow() {
 }
 
 // ─── Visual Glassmorphism Installer Window ──────────────────────────────────
-let isInstallerMode = process.argv.includes('--installer') || process.argv.includes('--setup');
-let installerWindow = null;
-
 function createInstallerWindow() {
   installerWindow = new BrowserWindow({
     width: 760,
@@ -337,7 +377,35 @@ function createInstallerWindow() {
   });
 }
 
+function handleSelfUninstall() {
+  const appDir = path.dirname(process.execPath);
+  const psCleanup = `
+    Start-Sleep -Milliseconds 900
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $startMenu = [Environment]::GetFolderPath('CommonPrograms')
+    $userStart = [Environment]::GetFolderPath('Programs')
+    Remove-Item -LiteralPath "$desktop\\Wingetix.lnk" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "$startMenu\\Wingetix.lnk" -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "$userStart\\Wingetix.lnk" -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wingetix" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wingetix" -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath "${appDir.replace(/\\/g, '\\\\')}" -Recurse -Force -ErrorAction SilentlyContinue
+  `;
+  try {
+    spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', psCleanup], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    }).unref();
+  } catch (_) {}
+  app.quit();
+}
+
 app.whenReady().then(() => {
+  if (process.argv.includes('--uninstall')) {
+    handleSelfUninstall();
+    return;
+  }
   if (isInstallerMode) {
     createInstallerWindow();
   } else {
@@ -440,11 +508,65 @@ ipcMain.handle('installer:select-path', async () => {
   return null;
 });
 
+async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
+  const skipNames = new Set([
+    'installer_mode.txt',
+    'app-unpacked',
+    'data',
+    'release-output',
+    'installer-output',
+    'dist',
+    'node_modules',
+    '.git'
+  ]);
+
+  const filesToCopy = [];
+  function collectFiles(curSrc, curDst) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(curSrc, { withFileTypes: true });
+    } catch (_) { return; }
+    for (const ent of entries) {
+      if (skipNames.has(ent.name.toLowerCase())) continue;
+      const srcPath = path.join(curSrc, ent.name);
+      const dstPath = path.join(curDst, ent.name);
+      if (ent.isDirectory()) {
+        collectFiles(srcPath, dstPath);
+      } else if (ent.isFile()) {
+        filesToCopy.push({ srcPath, dstPath });
+      }
+    }
+  }
+
+  collectFiles(sourceDir, targetDir);
+  const total = filesToCopy.length || 1;
+
+  for (let i = 0; i < filesToCopy.length; i++) {
+    const { srcPath, dstPath } = filesToCopy[i];
+    try {
+      const dstFolder = path.dirname(dstPath);
+      if (!fs.existsSync(dstFolder)) {
+        fs.mkdirSync(dstFolder, { recursive: true });
+      }
+      await fs.promises.copyFile(srcPath, dstPath);
+    } catch (_) {}
+
+    if (i % 8 === 0 || i === filesToCopy.length - 1) {
+      const pct = Math.round(15 + ((i + 1) / total) * 38);
+      if (onProgress) onProgress(pct);
+      await new Promise(r => setTimeout(r, 8));
+    }
+  }
+}
+
 ipcMain.on('installer:run-install', async (event, config) => {
   const targetDir = config.targetPath || path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Wingetix');
   const lang = config.lang || 'en';
   const createDesktop = !!config.createDesktopShortcut;
   const enableWinget = !!config.enableWinget;
+
+  lastInstalledTargetDir = targetDir;
+  lastInstalledLang = lang;
 
   function sendProgress(percent, message, milestone) {
     if (installerWindow && !installerWindow.isDestroyed()) {
@@ -459,12 +581,38 @@ ipcMain.on('installer:run-install', async (event, config) => {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    sendProgress(25, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
-    
-    // Defer a slight tick for visual animation feel
-    await new Promise(r => setTimeout(r, 450));
+    const appSourceDir = path.dirname(process.execPath);
+    const isSameDir = path.resolve(appSourceDir).toLowerCase() === path.resolve(targetDir).toLowerCase();
 
-    sendProgress(50, lang === 'es' ? 'Archivos del sistema verificados (50%)' : 'System files verified (50%)', 'extract');
+    if (!isSameDir) {
+      await copyAppRuntimeToTarget(appSourceDir, targetDir, (pct) => {
+        sendProgress(
+          pct,
+          lang === 'es' ? `Desempaquetando archivos del sistema... (${pct}%)` : `Extracting system files... (${pct}%)`,
+          'extract'
+        );
+      });
+    } else {
+      sendProgress(35, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
+      await new Promise(r => setTimeout(r, 350));
+    }
+
+    // Mark target installation as installed_mode (and remove installer_mode.txt if present)
+    try {
+      const targetResDir = path.join(targetDir, 'resources');
+      if (!fs.existsSync(targetResDir)) fs.mkdirSync(targetResDir, { recursive: true });
+      fs.writeFileSync(path.join(targetResDir, 'installed_mode.txt'), 'installed', 'utf8');
+      const leftoverInstallerFlag = path.join(targetResDir, 'installer_mode.txt');
+      if (fs.existsSync(leftoverInstallerFlag)) {
+        fs.unlinkSync(leftoverInstallerFlag);
+      }
+      const leftoverScriptFlag = path.join(targetResDir, 'scripts', 'installer_mode.txt');
+      if (fs.existsSync(leftoverScriptFlag)) {
+        fs.unlinkSync(leftoverScriptFlag);
+      }
+    } catch (_) {}
+
+    sendProgress(55, lang === 'es' ? 'Archivos del sistema instalados y verificados (55%)' : 'System files installed and verified (55%)', 'extract');
 
     // WinGet Registration / PATH fix if requested
     if (enableWinget) {
@@ -563,12 +711,13 @@ ipcMain.on('installer:run-install', async (event, config) => {
 });
 
 ipcMain.on('installer:launch-app', () => {
-  const targetDir = process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Wingetix') : 'C:\\Program Files\\Wingetix';
+  const targetDir = lastInstalledTargetDir || (process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Wingetix') : 'C:\\Program Files\\Wingetix');
   const targetExe = path.join(targetDir, 'Wingetix.exe');
   const exeToRun = fs.existsSync(targetExe) ? targetExe : process.execPath;
   
   try {
-    spawn(exeToRun, [], {
+    spawn(exeToRun, ['--app-mode', `--lang=${lastInstalledLang || 'en'}`], {
+      cwd: fs.existsSync(targetDir) ? targetDir : path.dirname(exeToRun),
       detached: true,
       stdio: 'ignore'
     }).unref();

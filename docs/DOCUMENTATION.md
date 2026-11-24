@@ -262,8 +262,8 @@ npm run build
 ### Official v1.2.0 Release Artifacts & SHA-256 Checksums:
 | Artifact | Type | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- |
-| **`Wingetix.Setup.1.2.0.exe`** | Official Windows 10/11 Installer | `74.1 MB` | `E46A7503B49C8C7E5D5254FCDFE7FD9A6C0CC3ED262740007BAA3D4183A0759B` |
-| **`Wingetix.1.2.0.exe`** | Zero-Footprint USB Portable | `73.9 MB` | `780A52CD34E64E84C95652D19DCF70EAB87CE99A60CDE99683ED5BA296F9B157` |
+| **`Wingetix.Setup.1.2.0.exe`** | Official Windows 10/11 Installer | `74.1 MB` | `EA3F5D1E61C0FEDF6F24D5C496CF513B127DA55E514B71681D2A06DE973F3A1C` |
+| **`Wingetix.1.2.0.exe`** | Zero-Footprint USB Portable | `73.9 MB` | `A3922BE544E65F6BB214A573D43783CEE6AF43371FF5FF7B89B2ED5B6380CFA1` |
 
 ---
 
