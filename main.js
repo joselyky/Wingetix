@@ -577,29 +577,85 @@ ipcMain.on('installer:run-install', async (event, config) => {
   try {
     sendProgress(10, lang === 'es' ? 'Preparando entorno de instalación...' : 'Preparing installation environment...');
     
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
+    let finalTargetDir = targetDir;
+    let canWriteDirectly = false;
+    try {
+      if (!fs.existsSync(finalTargetDir)) {
+        fs.mkdirSync(finalTargetDir, { recursive: true });
+      }
+      const probeFile = path.join(finalTargetDir, `.wingetix_write_test_${Date.now()}`);
+      fs.writeFileSync(probeFile, 'ok', 'utf8');
+      fs.unlinkSync(probeFile);
+      canWriteDirectly = true;
+    } catch (_) {
+      canWriteDirectly = false;
     }
 
     const appSourceDir = path.dirname(process.execPath);
-    const isSameDir = path.resolve(appSourceDir).toLowerCase() === path.resolve(targetDir).toLowerCase();
+    const isSameDir = path.resolve(appSourceDir).toLowerCase() === path.resolve(finalTargetDir).toLowerCase();
 
     if (!isSameDir) {
-      await copyAppRuntimeToTarget(appSourceDir, targetDir, (pct) => {
-        sendProgress(
-          pct,
-          lang === 'es' ? `Desempaquetando archivos del sistema... (${pct}%)` : `Extracting system files... (${pct}%)`,
-          'extract'
-        );
-      });
+      if (canWriteDirectly) {
+        await copyAppRuntimeToTarget(appSourceDir, finalTargetDir, (pct) => {
+          sendProgress(
+            pct,
+            lang === 'es' ? `Desempaquetando archivos del sistema... (${pct}%)` : `Extracting system files... (${pct}%)`,
+            'extract'
+          );
+        });
+      } else {
+        // Target directory requires Administrator permissions (e.g. C:\Program Files\Wingetix)
+        sendProgress(25, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
+        const elevatedCopyScript = `
+          $src = "${appSourceDir.replace(/\\/g, '\\\\')}"
+          $dst = "${finalTargetDir.replace(/\\/g, '\\\\')}"
+          if (!(Test-Path -LiteralPath $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
+          Get-ChildItem -LiteralPath $src -Force | Where-Object { $_.Name -notin @('installer_mode.txt','app-unpacked','data','release-output','installer-output','dist','node_modules','.git') } | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $dst -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          $resDir = Join-Path $dst "resources"
+          if (!(Test-Path -LiteralPath $resDir)) { New-Item -ItemType Directory -Path $resDir -Force | Out-Null }
+          [System.IO.File]::WriteAllText((Join-Path $resDir "installed_mode.txt"), "installed", [System.Text.Encoding]::UTF8)
+          [System.IO.File]::WriteAllText((Join-Path $resDir "installed_lang.txt"), "${lang}", [System.Text.Encoding]::UTF8)
+          Remove-Item -LiteralPath (Join-Path $resDir "installer_mode.txt") -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $resDir "scripts\\installer_mode.txt") -Force -ErrorAction SilentlyContinue
+        `;
+        const encodedCmd = Buffer.from(elevatedCopyScript, 'utf16le').toString('base64');
+        const elevatedOk = await new Promise((resolve) => {
+          const ps = spawn('powershell.exe', [
+            '-NoProfile', '-NonInteractive', '-Command',
+            `try { $p = Start-Process powershell.exe -ArgumentList '-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand ${encodedCmd}' -Verb RunAs -Wait -PassThru; exit $p.ExitCode } catch { exit 1 }`
+          ], { windowsHide: true });
+          ps.on('close', (code) => resolve(code === 0 && fs.existsSync(path.join(finalTargetDir, 'Wingetix.exe'))));
+          ps.on('error', () => resolve(false));
+        });
+
+        if (!elevatedOk) {
+          // Seamless fallback to standard user Programs directory (%LOCALAPPDATA%\Programs\Wingetix)
+          finalTargetDir = path.join(process.env.LOCALAPPDATA || os.homedir(), 'Programs', 'Wingetix');
+          lastInstalledTargetDir = finalTargetDir;
+          if (!fs.existsSync(finalTargetDir)) {
+            fs.mkdirSync(finalTargetDir, { recursive: true });
+          }
+          await copyAppRuntimeToTarget(appSourceDir, finalTargetDir, (pct) => {
+            sendProgress(
+              pct,
+              lang === 'es' ? `Desempaquetando archivos del sistema... (${pct}%)` : `Extracting system files... (${pct}%)`,
+              'extract'
+            );
+          });
+        }
+      }
     } else {
       sendProgress(35, lang === 'es' ? 'Desempaquetando archivos del sistema... (35%)' : 'Extracting system files... (35%)', 'extract');
       await new Promise(r => setTimeout(r, 350));
     }
 
+    lastInstalledTargetDir = finalTargetDir;
+
     // Mark target installation as installed_mode (and remove installer_mode.txt if present)
     try {
-      const targetResDir = path.join(targetDir, 'resources');
+      const targetResDir = path.join(finalTargetDir, 'resources');
       if (!fs.existsSync(targetResDir)) fs.mkdirSync(targetResDir, { recursive: true });
       fs.writeFileSync(path.join(targetResDir, 'installed_mode.txt'), 'installed', 'utf8');
       const leftoverInstallerFlag = path.join(targetResDir, 'installer_mode.txt');
@@ -632,7 +688,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
 
     sendProgress(80, lang === 'es' ? 'Creando accesos directos y registrando... (90%)' : 'Creating shortcuts and registering... (90%)', 'shortcuts');
 
-    const targetExe = path.join(targetDir, 'Wingetix.exe');
+    const targetExe = path.join(finalTargetDir, 'Wingetix.exe');
     const exePathForShortcut = fs.existsSync(targetExe) ? targetExe : process.execPath;
 
     let shortcutPsScript = '';
@@ -641,18 +697,17 @@ ipcMain.on('installer:run-install', async (event, config) => {
         $desktop = [Environment]::GetFolderPath('Desktop')
         $s1 = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\\Wingetix.lnk")
         $s1.TargetPath = "${exePathForShortcut.replace(/\\/g, '\\\\')}"
-        $s1.WorkingDirectory = "${targetDir.replace(/\\/g, '\\\\')}"
+        $s1.WorkingDirectory = "${finalTargetDir.replace(/\\/g, '\\\\')}"
         $s1.Description = "Wingetix - Visual Control Panel"
         $s1.Save()
       `;
     }
 
     shortcutPsScript += `
-      $startMenu = [Environment]::GetFolderPath('CommonPrograms')
-      if (-not (Test-Path $startMenu)) { $startMenu = [Environment]::GetFolderPath('Programs') }
+      $startMenu = [Environment]::GetFolderPath('Programs')
       $s2 = (New-Object -COM WScript.Shell).CreateShortcut("$startMenu\\Wingetix.lnk")
       $s2.TargetPath = "${exePathForShortcut.replace(/\\/g, '\\\\')}"
-      $s2.WorkingDirectory = "${targetDir.replace(/\\/g, '\\\\')}"
+      $s2.WorkingDirectory = "${finalTargetDir.replace(/\\/g, '\\\\')}"
       $s2.Description = "Wingetix - Visual Control Panel"
       $s2.Save()
     `;
@@ -676,7 +731,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
         Set-ItemProperty -Path $regPath -Name "DisplayName" -Value "Wingetix" -Force
         Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value "1.2.0" -Force
         Set-ItemProperty -Path $regPath -Name "Publisher" -Value "Wingetix" -Force
-        Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value "${targetDir.replace(/\\/g, '\\\\')}" -Force
+        Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value "${finalTargetDir.replace(/\\/g, '\\\\')}" -Force
         Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "${exePathForShortcut.replace(/\\/g, '\\\\')},0" -Force
         Set-ItemProperty -Path $regPath -Name "UninstallString" -Value "\\"${exePathForShortcut.replace(/\\/g, '\\\\')}\\" --uninstall" -Force
       `;
@@ -686,7 +741,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
 
     // Save language
     try {
-      const langFilePath = path.join(targetDir, 'resources', 'installed_lang.txt');
+      const langFilePath = path.join(finalTargetDir, 'resources', 'installed_lang.txt');
       const langDir = path.dirname(langFilePath);
       if (!fs.existsSync(langDir)) fs.mkdirSync(langDir, { recursive: true });
       fs.writeFileSync(langFilePath, lang, 'utf8');
