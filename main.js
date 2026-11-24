@@ -673,8 +673,10 @@ ipcMain.on('installer:run-install', async (event, config) => {
     }
 
     // Verify Wingetix.exe exists in finalTargetDir; if not, fallback to user Programs directory
-    if (!fs.existsSync(path.join(finalTargetDir, 'Wingetix.exe')) && finalTargetDir !== fallbackUserDir) {
-      finalTargetDir = fallbackUserDir;
+    if (!fs.existsSync(path.join(finalTargetDir, 'Wingetix.exe'))) {
+      if (finalTargetDir !== fallbackUserDir) {
+        finalTargetDir = fallbackUserDir;
+      }
       if (!fs.existsSync(finalTargetDir)) {
         fs.mkdirSync(finalTargetDir, { recursive: true });
       }
@@ -688,6 +690,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
       const targetResDir = path.join(finalTargetDir, 'resources');
       if (!fs.existsSync(targetResDir)) fs.mkdirSync(targetResDir, { recursive: true });
       fs.writeFileSync(path.join(targetResDir, 'installed_mode.txt'), 'installed', 'utf8');
+      fs.writeFileSync(path.join(targetResDir, 'installed_lang.txt'), lang, 'utf8');
       const leftoverInstallerFlag = path.join(targetResDir, 'installer_mode.txt');
       if (fs.existsSync(leftoverInstallerFlag)) {
         fs.unlinkSync(leftoverInstallerFlag);
@@ -696,6 +699,23 @@ ipcMain.on('installer:run-install', async (event, config) => {
       if (fs.existsSync(leftoverScriptFlag)) {
         fs.unlinkSync(leftoverScriptFlag);
       }
+    } catch (_) {}
+
+    // Write installation diagnostic trace
+    try {
+      const traceInfo = {
+        timestamp: new Date().toISOString(),
+        appSourceDir,
+        requestedTargetDir: targetDir,
+        finalTargetDir,
+        exeExists: fs.existsSync(path.join(finalTargetDir, 'Wingetix.exe')),
+        lang
+      };
+      fs.writeFileSync(
+        path.join(os.tmpdir(), 'wingetix_last_install.json'),
+        JSON.stringify(traceInfo, null, 2),
+        'utf8'
+      );
     } catch (_) {}
 
     sendProgress(55, lang === 'es' ? 'Archivos del sistema instalados y verificados (55%)' : 'System files installed and verified (55%)', 'extract');
@@ -795,7 +815,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
   }
 });
 
-ipcMain.on('installer:launch-app', () => {
+ipcMain.on('installer:launch-app', async () => {
   const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
   const defaultUserDir = path.join(localAppData, 'Programs', 'Wingetix');
   const progFilesDir = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Wingetix');
@@ -816,54 +836,99 @@ ipcMain.on('installer:launch-app', () => {
     }
   }
 
+  // Never fall back to a temporary NSIS extraction directory that gets deleted on quit!
+  if (!exeToRun || exeToRun.toLowerCase().includes('\\appdata\\local\\temp\\')) {
+    try {
+      if (!fs.existsSync(defaultUserDir)) {
+        fs.mkdirSync(defaultUserDir, { recursive: true });
+      }
+      await copyAppRuntimeToTarget(resolveInstallerSourceDir(), defaultUserDir);
+      const resDir = path.join(defaultUserDir, 'resources');
+      if (!fs.existsSync(resDir)) fs.mkdirSync(resDir, { recursive: true });
+      fs.writeFileSync(path.join(resDir, 'installed_mode.txt'), 'installed', 'utf8');
+      fs.writeFileSync(path.join(resDir, 'installed_lang.txt'), lastInstalledLang || 'en', 'utf8');
+      const flag1 = path.join(resDir, 'installer_mode.txt');
+      const flag2 = path.join(resDir, 'scripts', 'installer_mode.txt');
+      if (fs.existsSync(flag1)) fs.unlinkSync(flag1);
+      if (fs.existsSync(flag2)) fs.unlinkSync(flag2);
+      const copiedExe = path.join(defaultUserDir, 'Wingetix.exe');
+      if (fs.existsSync(copiedExe)) {
+        exeToRun = copiedExe;
+      }
+    } catch (_) {}
+  }
+
   if (!exeToRun) {
     exeToRun = process.execPath;
   }
 
-  // Hide the installer window immediately for instant visual feedback
+  // Ensure installed_mode.txt is present in the target exe's resources folder
+  // so launching Wingetix.exe directly (even via explorer.exe / shell.openPath without args)
+  // ALWAYS boots into the main Wingetix application and NEVER into the installer!
+  const workDir = path.dirname(exeToRun);
+  const langVal = lastInstalledLang || 'en';
+  try {
+    const resDir = path.join(workDir, 'resources');
+    if (fs.existsSync(resDir)) {
+      fs.writeFileSync(path.join(resDir, 'installed_mode.txt'), 'installed', 'utf8');
+      fs.writeFileSync(path.join(resDir, 'installed_lang.txt'), langVal, 'utf8');
+      const f1 = path.join(resDir, 'installer_mode.txt');
+      const f2 = path.join(resDir, 'scripts', 'installer_mode.txt');
+      if (fs.existsSync(f1)) fs.unlinkSync(f1);
+      if (fs.existsSync(f2)) fs.unlinkSync(f2);
+    }
+  } catch (_) {}
+
+  // Switch active instance from Installer Mode to App Mode and open the main window immediately!
+  // This guarantees 100% instant opening without NSIS/Portable wrapper teardown races.
+  isInstallerMode = false;
+  if (!process.argv.includes('--app-mode')) {
+    process.argv.push('--app-mode');
+  }
+  if (!process.argv.some(a => typeof a === 'string' && a.startsWith('--lang='))) {
+    process.argv.push(`--lang=${langVal}`);
+  }
+  try {
+    saveAppSettings({ language: langVal });
+  } catch (_) {}
+
+  try {
+    createWindow();
+    if (installerWindow && !installerWindow.isDestroyed()) {
+      installerWindow.close();
+      installerWindow = null;
+    }
+    return;
+  } catch (err) {
+    console.error('[Installer] In-process window switch failed, falling back to external spawn:', err);
+  }
+
+  // Fallback external spawn if createWindow ever throws
   try {
     if (installerWindow && !installerWindow.isDestroyed()) {
       installerWindow.hide();
     }
   } catch (_) {}
 
-  // Strip portable / node environment variables inherited from the Setup wrapper
-  // so the installed Wingetix.exe boots cleanly into main application mode.
   const cleanEnv = { ...process.env };
   delete cleanEnv.ELECTRON_RUN_AS_NODE;
   delete cleanEnv.PORTABLE_EXECUTABLE_FILE;
   delete cleanEnv.PORTABLE_EXECUTABLE_DIR;
   delete cleanEnv.PORTABLE_EXECUTABLE_APP_FILENAME;
 
-  const workDir = path.dirname(exeToRun);
-  const langArg = `--lang=${lastInstalledLang || 'en'}`;
-
   try {
-    const child = spawn(exeToRun, ['--app-mode', langArg], {
+    spawn('explorer.exe', [exeToRun], {
       cwd: workDir,
       env: cleanEnv,
       detached: true,
       stdio: 'ignore',
       windowsHide: false
-    });
-    child.unref();
-  } catch (err) {
-    console.error('[Installer] Direct spawn failed, trying cmd start:', err);
-    try {
-      spawn('cmd.exe', ['/c', 'start', '""', exeToRun, '--app-mode', langArg], {
-        cwd: workDir,
-        env: cleanEnv,
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true
-      }).unref();
-    } catch (_) {}
-  }
+    }).unref();
+  } catch (_) {}
 
-  // Give Windows 650ms to initialize the detached child process before closing the installer
   setTimeout(() => {
     app.quit();
-  }, 650);
+  }, 900);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

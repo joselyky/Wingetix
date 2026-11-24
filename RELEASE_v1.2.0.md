@@ -39,8 +39,8 @@
 
 | Archivo | Tipo | SHA-256 Checksum |
 | :--- | :--- | :--- |
-| `Wingetix.Setup.1.2.0.exe` / `Wingetix Setup 1.2.0.exe` | Instalador Oficial (Recomendado) | `9495641EFAE1B62A5D37AFB59D1C45A0520F871A90C1E4D9776FE94DFBBBEEF2` |
-| `Wingetix.1.2.0.exe` / `Wingetix 1.2.0.exe` | Portable Zero-Footprint USB | `CEAA7EAE9FD438D349FD754D3F5A8B9C72F4E649A7AC06ADB4412E313AA1396A` |
+| `Wingetix.Setup.1.2.0.exe` / `Wingetix Setup 1.2.0.exe` | Instalador Oficial (Recomendado) | `55970C450B2A9411FB2AE8A84D2B71CE1A085E7B276A95532DF19B6F3E8F909F` |
+| `Wingetix.1.2.0.exe` / `Wingetix 1.2.0.exe` | Portable Zero-Footprint USB | `7C42420B1F6145CF35F0C3D42098DEAEFEF16CFC2B3567B7BB2E56ADD16C20CE` |
 
 ### 📋 Descripción de Archivos
 
