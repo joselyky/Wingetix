@@ -62,6 +62,10 @@
     "files": [
       "**/*",
       "!node_modules/**/*",
+      "!release-output/**/*",
+      "!installer-output/**/*",
+      "!dist/**/*",
+      "!Wingetix-win32-x64/**/*",
       "node_modules/electron-store/**/*"
     ]
   }
