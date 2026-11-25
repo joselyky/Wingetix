@@ -532,6 +532,16 @@ function resolveInstallerSourceDir() {
 }
 
 async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
+  // CRITICAL: Electron's patched `fs` treats `.asar` files as virtual directories,
+  // causing `fs.copyFile('.../app.asar', ...)` to fail with `ENOENT, '' not found in app.asar`!
+  // Using `original-fs` bypasses ASAR virtualization and copies `app.asar` as a raw binary file!
+  let rawFs = fs;
+  try {
+    rawFs = require('original-fs');
+  } catch (_) {
+    rawFs = fs;
+  }
+
   const skipNames = new Set([
     'installer_mode.txt',
     'app-unpacked',
@@ -547,7 +557,7 @@ async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
   function collectFiles(curSrc, curDst) {
     let entries = [];
     try {
-      entries = fs.readdirSync(curSrc, { withFileTypes: true });
+      entries = rawFs.readdirSync(curSrc, { withFileTypes: true });
     } catch (_) { return; }
     for (const ent of entries) {
       if (skipNames.has(ent.name.toLowerCase())) continue;
@@ -568,18 +578,15 @@ async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
     const { srcPath, dstPath } = filesToCopy[i];
     const dstFolder = path.dirname(dstPath);
     try {
-      if (!fs.existsSync(dstFolder)) {
-        fs.mkdirSync(dstFolder, { recursive: true });
+      if (!rawFs.existsSync(dstFolder)) {
+        rawFs.mkdirSync(dstFolder, { recursive: true });
       }
-      // On Windows, copyFileSync / copyFile fails with EBUSY/EPERM when reading
-      // a memory-mapped file inside the currently running Electron runtime (Wingetix.exe, app.asar, icudtl.dat).
-      // Fallback to streamed read (O_RDONLY shared) -> write so every single file is 100% copied!
       try {
-        await fs.promises.copyFile(srcPath, dstPath);
+        await rawFs.promises.copyFile(srcPath, dstPath);
       } catch (_) {
         await new Promise((resCopy, rejCopy) => {
-          const rs = fs.createReadStream(srcPath);
-          const ws = fs.createWriteStream(dstPath);
+          const rs = rawFs.createReadStream(srcPath);
+          const ws = rawFs.createWriteStream(dstPath);
           rs.on('error', rejCopy);
           ws.on('error', rejCopy);
           ws.on('finish', resCopy);
@@ -855,21 +862,22 @@ ipcMain.on('installer:run-install', async (event, config) => {
           $s2.Save()
         `;
       }
-      if (shortcutPsScript) {
+    if (shortcutPsScript) {
         try {
+          const encodedPs = Buffer.from(shortcutPsScript, 'utf16le').toString('base64');
           await new Promise((resolve) => {
-            const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', shortcutPsScript], {
+            const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodedPs], {
               windowsHide: true
             });
             ps.on('close', () => resolve());
             ps.on('error', () => resolve());
-            setTimeout(resolve, 4000);
+            setTimeout(resolve, 6000);
           });
         } catch (_) {}
       }
     }
 
-    // Registry Uninstall entry
+    // Registry Uninstall entry (encoded UTF-16LE so spaces/accents in paths never break)
     try {
       const regCmd = `
         $regPath = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Wingetix'
@@ -881,7 +889,8 @@ ipcMain.on('installer:run-install', async (event, config) => {
         Set-ItemProperty -Path $regPath -Name 'DisplayIcon' -Value '${iconForShortcut.replace(/'/g, "''")},0' -Force
         Set-ItemProperty -Path $regPath -Name 'UninstallString' -Value '"${exePathForShortcut.replace(/'/g, "''")}" --uninstall' -Force
       `;
-      const psReg = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', regCmd], { windowsHide: true });
+      const encodedReg = Buffer.from(regCmd, 'utf16le').toString('base64');
+      const psReg = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encodedReg], { windowsHide: true });
       psReg.on('close', () => {});
     } catch (_) {}
 
