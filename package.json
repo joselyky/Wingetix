@@ -69,5 +69,10 @@
       "!Wingetix-win32-x64/**/*",
       "node_modules/electron-store/**/*"
     ]
+  },
+  "overrides": {
+    "ajv": {
+      "fast-uri": "4.2.3"
+    }
   }
 }
