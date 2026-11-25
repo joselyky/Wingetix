@@ -1,141 +1,102 @@
-# 📋 Wingetix v1.2.0 — Apuntes y Hoja de Ruta (Roadmap)
+# 📋 Wingetix — Apuntes y Hoja de Ruta (Próxima Versión v1.2.1 / v1.3.0)
 
-Documento de planificación y notas técnicas para la próxima versión de **Wingetix**, integrando la retroalimentación directa de la comunidad de Reddit y las mejoras técnicas aprobadas.
+Documento activo de planificación con las mejoras y correcciones **pendientes de implementar** en la próxima versión de **Wingetix**.
 
----
-
-## 🎨 1. NUEVA EXPERIENCIA: Instalador Visual Glassmorphism (Estilo Web / Discord / Spotify)
-* **Estado:** ✅ **COMPLETADO AL 100%**
-> **Objetivo:** Sustituir las típicas ventanas grises de instalación estilo "Windows 98/XP" por un instalador moderno, sin marcos clásicos (`frameless`), con esquinas redondeadas y con el diseño exacto de la página web (`wingetix.com`).
-
-### Flujo de Pantallas de la Instalación:
-1. **🌌 Pantalla 1: Bienvenida Cósmica (Hero Splash):**
-   - **Fondo:** El degradado cósmico profundo de la web con el manto de estrellas (`.stars-layer`).
-   - **Centro:** El logo atómico grande de Wingetix flotando en el medio con su resplandor aura en verde esmeralda y cian brillante.
-   - **Texto:** *"Wingetix — The Ultimate Visual Control Panel for Windows"*.
-   - **Botón:** Botón personalizado brillante con efecto cristal: **`[ Comenzar Instalación → ]`**.
-2. **⚙️ Pantalla 2: Opciones con Tarjetas Glassmorphism:**
-   - Transición suave donde el logo sube a la cabecera y aparece una tarjeta oscura traslúcida.
-   - Selector de idioma (`🇪🇸 Español` / `🇬🇧 English`).
-   - Interruptores modernos para: *Crear acceso directo en el escritorio* y *Verificar/activar motor oficial WinGet*.
-   - Botón `[ Atrás ]` y botón brillante `[ Instalar Ahora ]`.
-3. **⚡ Pantalla 3: Instalación con Barra de Progreso Neón:**
-   - Barra de progreso fina con gradiente cian (`#6ee7b7` a `#38bdf8`) con resplandor animado.
-   - Mensajes dinámicos en tiempo real:
-     * *"Desempaquetando archivos del sistema... (35%)"*
-     * *"Verificando y registrando motor WinGet... (70%)"*
-     * *"Creando accesos directos... (100%)"*
-4. **🎉 Pantalla 4: Finalización:**
-   - Checkmark verde brillante: *"¡Instalación completada con éxito!"*.
-   - Botón destacado gigante: **`[ 🚀 Abrir Wingetix ]`**.
+> 🗂️ **Historial de versiones anteriores completadas (`v1.0.0` -> `v1.2.0`):** Archivado y organizado por versión en [docs/VERSION-HISTORY.md](file:///c:/Scripts/Winget%20Manager%20Versions/docs/VERSION-HISTORY.md) y en la carpeta [`docs/version-history/`](file:///c:/Scripts/Winget%20Manager%20Versions/docs/version-history/).
 
 ---
 
-## 🚨 2. PRIORIDAD CRÍTICA: Compatibilidad Total con Windows 10 y Resolución de WinGet
-* **Estado:** ✅ **COMPLETADO AL 100%**
-> **Problema reportado en Reddit:** *"La app no funciona en Windows 10"*.
-
-### Causa técnica identificada del fallo en Windows 10:
-1. **El bug de los "App Execution Aliases" elevados en Windows 10:**
-   - Wingetix se ejecuta con permisos de Administrador (`requireAdministrator`).
-   - En **Windows 10**, el subsistema UAC bloquea o no resuelve los alias de ejecución de la tienda (`%LOCALAPPDATA%\Microsoft\WindowsApps\winget.exe`) cuando un proceso corre con privilegios elevados. (Windows 11 corrigió esto internamente, pero Windows 10 falla con *"Acceso denegado"* o *"El sistema no puede encontrar el archivo"*).
-   - Por esta razón, comandos directos `spawn('winget', ..., { shell: false })` fallan en Windows 10 con error `ENOENT`.
-2. **WinGet no viene de serie en muchas ediciones de Windows 10:**
-   - Windows 10 LTSC, Enterprise, o usuarios que no actualizan la Microsoft Store no tienen `winget.exe` en su sistema.
-   - Sin el motor, la app queda congelada o no muestra ningún paquete.
-
-### Solución técnica a implementar en v1.2.0 para Windows 10:
-1. **Resolución de la ruta binaria real en `buildEnv()` (`main.js`):**
-   - Localizar la ruta física del ejecutable real en:
-     `C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe`.
-   - Inyectar esta carpeta directamente en la variable `PATH` del entorno en `buildEnv()`.
-2. **Uso consistente de `shell: true` o envoltura en `cmd.exe /c`:**
-   - Unificar todas las llamadas de `spawn('winget')` para que ninguna use `shell: false`.
-3. **Asistente de Autodetección y Activación de WinGet:**
-   - Si Windows 10 no tiene WinGet instalado, ofrecer la activación en 1 clic descargando `Microsoft.DesktopAppInstaller` y sus dependencias (`VCLibs` y `UI.Xaml`).
+## 🌐 1. PRIORIDAD ALTA: Localización 100% Dinámica en Tiempo de Ejecución (GitHub Issue #1 — "Language not complete")
+* **Estado:** 📝 **ANALIZADO AL 100% — PENDIENTE DE IMPLEMENTACIÓN**
+* **Referencia:** GitHub Issue [#1](https://github.com/joselyky/Wingetix/issues/1) reportado por `@iTzSnicholls` (*22/11/2026*):
+  > *"Was keen to test your tool out and as selecting English it all looked promising but as i clicked Update selected i noticed all the Update messages at the bottom were in Spanish not as the selected English. But everything at the top was still in English, currently running latest version at time of raising this 1.1.1"*
 
 ---
 
-## 🌟 3. Feature Estrella: Creador de Packs y Perfiles de Software (Bundle Installer)
-* **Estado:** ✅ **COMPLETADO AL 100%**
-> **Inspiración:** Sugerencia de la comunidad (`u/joshuas_79` en Reddit) y utilidad estilo *Ninite / winget export*.
-
-### Especificaciones funcionales:
-1. **Exportar Configuración Actual:**
-   - Botón *"Exportar mis Apps a un Pack (.json / .wingetix)"*.
-2. **Importar y Desplegar:**
-   - Botón *"Cargar Pack de Software"* y botón *"Instalar todo el Pack en 1 Clic"* (silencioso).
-3. **Packs Predefinidos de Fábrica:**
-   - *Pack Básico / Oficina*, *Pack Gaming*, *Pack Desarrollador*.
-4. **Compatibilidad USB / Modo Portable:**
-   - Funciona idénticamente en instalable y en **Portable USB**.
+### 🔍 1.1 Diagnóstico Técnico: ¿Por qué salían textos en español teniendo *English* seleccionado?
+En `v1.2.0` se completó la auditoría de las **460 claves estáticas** de `i18n.js` (menús, cabeceras, tarjetas y botones con `data-i18n`), por lo que toda la parte superior de la interfaz se muestra perfectamente en inglés. Sin embargo, el **flujo dinámico en tiempo real** (cajón inferior de la cola de descargas, barra de estado inferior, eventos IPC emitidos desde `main.js`, diálogos nativos y algunos modales dinámicos) todavía interpola cadenas directamente en español o envía textos desde `main.js` sin leer el idioma activo del usuario.
 
 ---
 
-## 🎮 4. Detección Multi-GPU (Gráfica Integrada vs Gráfica Dedicada)
-* **Estado:** ✅ **COMPLETADO AL 100%**
-> **Problema reportado:** En ordenadores con procesador con gráficos integrados (Intel UHD/Iris Xe o AMD Radeon Graphics) y tarjeta gráfica dedicada (NVIDIA RTX/GTX, AMD RX o Intel Arc), la app a veces muestra la integrada o no permite ver ambas.
+### 🗺️ 1.2 Mapa Completo de Archivos y Módulos Afectados en Toda la Aplicación
 
-### Solución implementada en v1.2.0:
-1. **Selector Dual-GPU en la UI (Píldoras interactivas con estética Glassmorphism):**
-   - Selector dinámico `#gpu-selector-container` con píldoras individuales para cada GPU detectada.
-   - Distintivos visuales y colores de fabricante automáticos:
-     - `🎮 GPU 1: NVIDIA GeForce RTX (Dedicada)` en verde neón (`#76b900`).
-     - `⚡ GPU 2: AMD Radeon Graphics / Intel UHD (Integrada)` en cian (`#38bdf8`) o rojo (`#f87171`).
-2. **Priorización inteligente de la GPU Dedicada por defecto:** La app detecta y muestra inicialmente la tarjeta dedicada con mayor potencia/VRAM, permitiendo alternar al instante con un clic.
-3. **Métricas y suites dinámicas por adaptador:** Al seleccionar la GPU integrada o dedicada se refrescan en tiempo real el modelo, la memoria VRAM (GB/MB), resolución, frecuencia, telemetría y suites oficiales correspondientes (NVIDIA App / AMD Adrenalin / Intel Arc Control).
-
----
-
-## 🌐 5. Mejoras Aprobadas de la Comunidad de Reddit
-
-### 5.1 Auditoría y Pulido Integral del Inglés (`i18n.js`)
-* **Estado:** ✅ **COMPLETADO AL 100%**
-* **Reporte:** `u/mondychan` (*"english translation in the app is funky dory, needs a polish"*).
-* **Acción realizada:** Auditoría integral de las 460 cadenas en inglés. Se pulieron 44 términos clave reemplazando traducciones literales por terminología técnica estándar de Windows y desarrollo de software (*clean uninstallation*, *residual registry purge*, *version pinning*, *restore point creation*, *dedicated video memory*, *reclaimable disk space*, etc.), además de unificar las opciones ocultas de ordenación en `index.html`.
-
-### 5.2 Posicionamiento Oficial: ¿Por qué WinGet y no Chocolatey/Scoop?
-* **Estado:** ✅ **COMPLETADO AL 100%**
-* **Reporte:** `u/TomHale` preguntó por soporte para `choco` y `scoop`.
-* **Decisión y Acción realizada:** Se mantuvo el enfoque 100% nativo y seguro sobre Microsoft WinGet y se integró una sección dedicada de FAQ tanto en la aplicación de escritorio (ventana modal *Acerca de Wingetix y FAQ* accesible desde el menú principal), como en la web oficial (`wingetix.com`) y en el `README.md` de GitHub explicando los 3 pilares: integración nativa sin wrappers, descargas directas del CDN oficial del autor con verificación SHA-256 y cero redundancia de cachés/PATH.
-
-### 5.3 Demostración de Solidez Técnica y Transparencia
-* **Estado:** ✅ **COMPLETADO AL 100%**
-* **Reporte:** `u/smoke-bubble` (*escepticismo ante proyectos nuevos*).
-* **Acción realizada:** Se añadieron las insignias de verificación **VirusTotal 0/70 Clean**, validación criptográfica **SHA-256** y ejecución **100% Local & Zero Tracking** tanto en la cabecera y sección de seguridad de `README.md` como en la ventana modal *Acerca de Wingetix* dentro de la aplicación.
-
-### 5.4 Visibilidad Inmediata: 100% Gratis, Sin Anuncios y Sin Telemetría
-* **Estado:** ✅ **COMPLETADO AL 100%**
-* **Reporte:** `u/gvcggff` (*pereza para leer GitHub o la web*).
-* **Acción realizada:** Se integró de forma destacada en la primera línea de `README.md`, en la FAQ de la web y en el banner principal de la ventana *Acerca de Wingetix*:
-  > **100% Free Forever & Open Source (GPLv3) — Zero Ads, Zero Telemetry, No Premium Tier.**
-
-### 5.5 Guía de Colaboración Comunitaria (`CONTRIBUTING.md`)
-* **Estado:** ✅ **COMPLETADO AL 100%** (Ya redactada, integrada y publicada en GitHub).
+#### A) Cajón Inferior de Cola de Descargas y Barra de Estado (`renderer.js` — Fallo exacto de la captura del Issue #1)
+1. **Inicialización de la Cola (`initQueueUI`, líneas 600–689):**
+   - `statusQueueLabel`: `"Cola: 0/${items.length}"` -> usar `i18n.t('queue_status_counter', { done, total })` (`Queue: 0/X`).
+   - `queueSummaryText`: `"0 de ${items.length} completados"` -> `0 of X completed`.
+   - Versión destino por defecto: `item.available || 'nueva'` -> `'latest' / 'new'`.
+   - Badge inicial de cada tarjeta (línea 640): `"En cola"` -> `Queued`.
+   - Toasts de acciones rápidas en tarjetas (líneas 674–685): `"Solicitando autorización de Administrador para..."`, `"Cerrando procesos de..."`, `"Reintentando actualización de..."`.
+2. **Actualización en Vivo de Tarjetas y Barra Inferior (`updateQueueUI`, líneas 691–860):**
+   - Tamaño total calculándose (línea 715): `'Calculando...'` -> `Calculating...`.
+   - Estado `starting` (líneas 721–723): `'Conectando...'`, `'Iniciando descarga...'`.
+   - Estado `downloading` (líneas 730–740): Badge `'Descargando'` y `setStatusBar('Descargando: ${pName}', '${downloadedMB} MB de ${totalMbText}...')` *(al llevar variables interpoladas, no coincidía con el diccionario estático `statusDict` de `getTranslatedStatusText` y se quedaba en español en la barra inferior)*.
+   - Estado `installing` (líneas 746–758): `'Instalando...'`, `'Descarga completada (...) • Ejecutando instalador'`, `'Paso 2/2: Instalando'`, `setStatusBar('Instalando: ...', 'Ejecutando instalador oficial de Windows')`.
+   - Estado `completed` (líneas 774–783): `'Completado ✔'`, `'(Descargado)'`, `'Listo'`, `'Completado con éxito'`.
+   - Estados de error / cancelación y botones de recuperación (líneas 789–858):
+     - Badges: `'Cancelado ⏹'`, `'Requiere Admin 🛡'`, `'App en uso ⚠'`, `'Detenido'`.
+     - Botones dinámicos (respetando la **regla estricta de cero emojis en botones**): `'Reintentar'`, `'Instalar como Administrador'`, `'Cerrar app y Reintentar'`, `'Probar como Administrador'`.
+3. **Funciones Auxiliares de Progreso y Confirmación Masiva (`renderer.js`, líneas 509–565, 1318–1486, 2380–2543):**
+   - `showCancelButton`: `'Cancelar Desinstalación'` / `'Cancelar Actualización'`.
+   - `setupProgressTracking` / `updateProgress` / `hideProgress`: `'0 de ${total} paquetes'`, `'Procesando actualizaciones...'`, `'Todas las tareas han finalizado'`.
+   - `handleUpgradeAll` (línea 1455): Modal de advertencia al pulsar *Update All* (`"Vas a actualizar todas las aplicaciones y juegos detectados..."`) hardcoded en español.
+   - `getTranslatedStatusText` (líneas 2310–2440): Pasar directamente claves `i18n.t(...)` en origen en lugar de depender solo de traducciones por regex a posteriori.
 
 ---
 
-## ⚡ 6. Modo Portable Puro (Zero Footprint USB)
-* **Estado:** ✅ **COMPLETADO AL 100%**
-- **Solución implementada:**
-  1. **Detección automática de ejecución Portable / USB (`detectPortableMode` en `main.js`):** Al ejecutarse fuera de `C:\Program Files` (en pendrive USB o carpeta portable autónoma) o con `.\data` / `portable.txt` / `--portable`, Wingetix activa automáticamente el **Modo Portable Puro**.
-  2. **Persistencia en `.\data\settings.json` y `.\data\pinned_packages.json`:** Guarda el idioma, las preferencias del usuario y los paquetes fijados directamente en `.\data\settings.json` y los packs en `.\data\packs\`.
-  3. **Cero rastro en el PC anfitrión (`Zero Footprint`):** Redirige `userData` y `sessionData` de Electron a `.\data\profile` y `.\data\session` antes de `app.whenReady()`, evitando crear carpetas residuales en `%APPDATA%\Wingetix`.
-  4. **Distintivo interactivo en la UI:** Indicador `Portable (.\data)` en la tarjeta de Sistema y acceso directo en el menú principal para abrir la carpeta `.\data` en 1 clic.
+#### B) Proceso Principal Backend (`main.js` — Mensajes IPC, Consola, Errores y Diálogos Nativos de Windows)
+Crear un helper ligero `tMain(key, params)` en `main.js` sincronizado con `loadAppSettings().language` (actualizado automáticamente cuando el renderer cambia el selector EN/ES):
+
+1. **Motor de Actualizaciones WinGet (`winget:upgrade-packages` & `winget:upgrade-package-elevated`, líneas 2150–2760):**
+   - Mensajes `data.message` enviados a las tarjetas de la cola inferior:
+     - `'Iniciando descarga...'` (L2241)
+     - `'Iniciando instalador oficial de Windows...'`, `'Extrayendo y verificando archivos...'`, `'Aplicando actualización en el sistema...'`, `'Registrando componentes y librerías...'`, `'Finalizando configuración de instalación...'` (L2303–2307)
+     - `'Descargando: X MB / Y MB (Z%)'` (L2362, L2391)
+     - `'Completado ✔ (Reinicio requerido)'` / `'Completado con éxito'` (L2488)
+     - `'Esperando autorización de Administrador (UAC)...'` (L2510, L2699)
+     - `'Completado con éxito (como Administrador)'` / `'Permisos de Administrador cancelados por el usuario'` (L2522–2523, L2708–2709)
+     - `'Error al iniciar el proceso: ...'` (L2581)
+   - Función `getFriendlyErrorMessage(code, output)` (líneas 2600–2635): Traducir todos los diagnósticos amigables de error de WinGet (`'Ya se encuentra en la versión más reciente'`, `'Requiere permisos de Administrador para instalarse'`, `'La aplicación está abierta en Windows. Ciérrala para continuar'`, `'Hay otra instalación de Windows en curso'`, `'Error de conexión al descargar el instalador'`, etc.).
+   - Logs en vivo del cajón de consola (`winget:log`): `'▶ Iniciando actualización de X paquete(s)...'`, `'📦 Actualizando: ...'`, `'🛑 Actualización cancelada por el usuario.'`, `'✅ Todas las actualizaciones completadas.'`.
+2. **Diálogos Nativos de Abrir/Guardar de Windows (`dialog.showSaveDialog` / `dialog.showOpenDialog`, líneas 1307–1369):**
+   - `'Exportar lista de paquetes WinGet'`, `'Importar lista de paquetes WinGet'`, filtro `'Archivo JSON de WinGet'`, y mensaje de error de WinGet ausente (L1245).
+3. **Fallback de Editor Desconocido (`attachIconsToPackages`, líneas 1183, 1189):**
+   - Sustituir `'Desconocido'` literal en backend por valor neutro formateado en UI con `i18n.t('publisher_unknown')` (`Unknown` / `Desconocido`).
+4. **Motor de Desinstalación Segura y Platform Shield (`apps:uninstall-clean`, líneas 3235–3850):**
+   - Cabecera y fases de log (`[PHASE 2/3/4]`, `[SHIELD]`, `[RESTORE POINT]`) y avisos interactivos para juegos de Steam y Epic Games.
+5. **Logs de Instalación de Suites GPU (`gpu:install-package`, líneas 4021–4092):**
+   - Internacionalizar mensajes de inicio, éxito y error en el log de instalación de drivers/suites.
+6. **Backend de Puntos de Restauración (`restore:list`, `restore:create`, `restore:delete`, líneas 4125–4500):**
+   - Internacionalizar tipos y mensajes de éxito/cancelación UAC devueltos por PowerShell.
+7. **Backend del Auto-Updater (`checkAppUpdatesCore` / `downloadUpdateAsset`, líneas 4565–4750):**
+   - Internacionalizar errores HTTP, timeouts y texto de notas vacías.
 
 ---
 
-## 🗑️ 7. Mejoras en el Desinstalador Profundo (Deep Uninstaller v2)
-* **Estado:** ✅ **COMPLETADO AL 100%**
-- **Solución implementada:**
-  1. **Previsualización desplegable de carpetas y claves del registro (`apps:preview-residuals`):** Antes de confirmar la desinstalación, el modal de seguridad incluye un cajón desplegable interactivo que lista con precisión las carpetas residuales (`%AppData%`, `%LocalAppData%`, `ProgramData`, ruta de instalación) y las claves del Registro (`HKLM` / `HKCU`) que se van a purgar, permitiendo desmarcar cualquier elemento que el usuario desee conservar.
-  2. **Lista blanca configurable en el *Platform Shield* (`#modal-platform-shield`):** Nuevo gestor visual accesible desde la barra lateral del Desinstalador para añadir o elegir carpetas personalizadas y palabras clave protegidas (persistidas en `.\data\settings.json`), que se blindan junto con Steam, Epic Games, Riot, EA, Ubisoft, Battle.net y GOG.
+#### C) Resto de Vistas en `renderer.js` con Cadenas Hardcoded Residuales (Bidireccional EN <-> ES)
+1. **Vista Updates — Pinning / Pausar actualizaciones (líneas 1958–2118):**
+   - Badges y tooltips en filas fijadas (`'Pausada'`, `title` de botones fijar/desanclar) y toasts de error.
+2. **Vista Uninstaller (líneas 3529–3850):**
+   - Mensaje de tabla vacía por categoría (L3530–3531), badge `'Fijada'` (L3562), editor `'Desconocido'` (L3567) y textos de progreso individual/lotes.
+3. **Vista Graphics & Control (líneas 3887–4005):**
+   - `'Adaptador de pantalla genérico'` cuando no hay GPU detectada (L4003) y textos de comprobación online.
+4. **Vista Restore Points (líneas 4768–5200):**
+   - Nombre sugerido al crear punto manual (`Wingetix - Manual Restore Point` en EN / `Wingetix - Punto manual` en ES) y toasts de progreso/error.
+5. **Modal de Auto-Actualización de Wingetix (`initAppUpdater`, líneas 5265–5465):**
+   - Textos dinámicos de fecha de publicación, botones (`Remind me later`, `Cancel download`, `Close window`), diálogo de confirmación al cerrar descarga activa y toasts manuales.
+6. **Vista Software Packs — Bidireccionalidad al Español (líneas 6222, 6352–6362, 6501, 6509, 6800–6954):**
+   - Traducir al español cuando `currentLang === 'es'` las cadenas dinámicas nuevas escritas en inglés (`Scanning installed applications...`, `X of Y apps selected`, `X Installed on PC`, `Preparing installation of X app(s)...`).
 
 ---
 
-## 🎨 8. Ajustes de Rendimiento y UX
-* **Estado:** ✅ **COMPLETADO AL 100%**
-- **Solución implementada:**
-  1. **Buscador instantáneo con *debounce* (150ms):** Todos los buscadores de la aplicación (Actualizaciones, Desinstalador, Puntos de Restauración, Packs de Software y selector de aplicaciones instaladas) procesan el filtrado con un *debounce* de 150ms para eliminar bloqueos de renderizado al escribir rápido.
-  2. **Barra de progreso en la barra de tareas de Windows (`win.setProgressBar`):** Sincronización automática en tiempo real entre la barra de estado/descargas de Wingetix y el icono de la barra de tareas de Windows 10/11 (modos normal `0..1`, indeterminado y error, limpiándose a `-1` al finalizar).
-  3. **Notificaciones nativas del sistema operativo (`Notification` de Electron):** Integración con el Centro de Actividades de Windows (`AppUserModelId: com.joselyky.wingetix`) que muestra notificaciones nativas con el icono oficial al finalizar actualizaciones por lotes, instalaciones de packs, desinstalaciones profundas, limpiezas de espacio y creación de puntos de restauración (con clic para restaurar y enfocar la ventana).
+#### D) Hidratación Inicial de `index.html` sin Parpadeo (Zero-Flash English Default)
+- Pasar a inglés el texto base inicial de los ~30 elementos del panel GPU en `index.html` (líneas 860–1155) y el atributo `title` de `#btn-cancel-operation` (L1552) para evitar cualquier micro-parpadeo en español antes de ejecutarse `i18n.js`.
+
+---
+
+### 🛠️ 1.3 Plan de Ejecución Paso a Paso
+1. **`i18n.js`:** Añadir las ~95 claves dinámicas estructuradas (`queue_*`, `status_*`, `err_winget_*`, `restore_progress_*`, `updater_*`, `bundles_live_*`) en `en` y `es` (cero emojis en botones).
+2. **`main.js`:** Implementar `MAIN_I18N` + `tMain(key, vars)` sincronizado con el idioma activo para internacionalizar cola WinGet, errores amigables, desinstalador, GPU, restauración, auto-updater y diálogos nativos.
+3. **`renderer.js`:** Conectar todas las vistas y re-renderizar en vivo tarjetas/badges activos al cambiar el idioma desde la barra superior.
+4. **`index.html`:** Dejar todos los textos fallback iniciales 100% en inglés.
+5. **Verificación y GitHub Issue #1:** Validar todos los flujos en `EN` y `ES`, publicar release y responder/cerrar el Issue #1 de `@iTzSnicholls`.
