@@ -323,9 +323,13 @@ function getScriptPath(scriptName) {
 
 // ─── Window ───────────────────────────────────────────────────────────────────
 function createWindow() {
+  const winIconPath = fs.existsSync(path.join(__dirname, 'icon.ico'))
+    ? path.join(__dirname, 'icon.ico')
+    : path.join(__dirname, 'icon.png');
   mainWindow = new BrowserWindow({
     width: 1280, height: 800, minWidth: 960, minHeight: 640,
     frame: false, transparent: true, backgroundColor: '#00000000',
+    icon: winIconPath,
     webPreferences: {
       nodeIntegration: false, contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
@@ -562,20 +566,54 @@ async function copyAppRuntimeToTarget(sourceDir, targetDir, onProgress) {
 
   for (let i = 0; i < filesToCopy.length; i++) {
     const { srcPath, dstPath } = filesToCopy[i];
+    const dstFolder = path.dirname(dstPath);
     try {
-      const dstFolder = path.dirname(dstPath);
       if (!fs.existsSync(dstFolder)) {
         fs.mkdirSync(dstFolder, { recursive: true });
       }
-      await fs.promises.copyFile(srcPath, dstPath);
-    } catch (_) {}
+      // On Windows, copyFileSync / copyFile fails with EBUSY/EPERM when reading
+      // a memory-mapped file inside the currently running Electron runtime (Wingetix.exe, app.asar, icudtl.dat).
+      // Fallback to streamed read (O_RDONLY shared) -> write so every single file is 100% copied!
+      try {
+        await fs.promises.copyFile(srcPath, dstPath);
+      } catch (_) {
+        await new Promise((resCopy, rejCopy) => {
+          const rs = fs.createReadStream(srcPath);
+          const ws = fs.createWriteStream(dstPath);
+          rs.on('error', rejCopy);
+          ws.on('error', rejCopy);
+          ws.on('finish', resCopy);
+          rs.pipe(ws);
+        });
+      }
+    } catch (copyErr) {
+      console.warn('[Installer] File copy warning:', srcPath, copyErr.message);
+    }
 
     if (i % 8 === 0 || i === filesToCopy.length - 1) {
       const pct = Math.round(15 + ((i + 1) / total) * 38);
       if (onProgress) onProgress(pct);
-      await new Promise(r => setTimeout(r, 8));
+      await new Promise(r => setTimeout(r, 6));
     }
   }
+}
+
+function createShortcutSafe(shortcutPath, options) {
+  try {
+    const dir = path.dirname(shortcutPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (typeof shell.writeShortcutLink === 'function') {
+      const ok = shell.writeShortcutLink(shortcutPath, 'replace', options);
+      if (ok && fs.existsSync(shortcutPath)) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.warn('[Installer] shell.writeShortcutLink warning:', err.message);
+  }
+  return false;
 }
 
 ipcMain.on('installer:run-install', async (event, config) => {
@@ -738,40 +776,89 @@ ipcMain.on('installer:run-install', async (event, config) => {
 
     sendProgress(80, lang === 'es' ? 'Creando accesos directos y registrando... (90%)' : 'Creating shortcuts and registering... (90%)', 'shortcuts');
 
+    // Copy icon.ico to installed folder so shortcuts and Uninstall registry always display the crisp Wingetix icon
+    const targetIconPath = path.join(finalTargetDir, 'icon.ico');
+    try {
+      const bundledIco = path.join(__dirname, 'icon.ico');
+      if (fs.existsSync(bundledIco)) {
+        fs.writeFileSync(targetIconPath, fs.readFileSync(bundledIco));
+      }
+    } catch (_) {}
+
     const targetExe = path.join(finalTargetDir, 'Wingetix.exe');
     const exePathForShortcut = fs.existsSync(targetExe) ? targetExe : path.join(appSourceDir, 'Wingetix.exe');
+    const iconForShortcut = fs.existsSync(targetIconPath) ? targetIconPath : exePathForShortcut;
+    const shortcutArgs = `--app-mode --lang=${lang}`;
 
-    let shortcutPsScript = '';
-    if (createDesktop) {
-      shortcutPsScript += `
-        $desktop = [Environment]::GetFolderPath('Desktop')
-        $s1 = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\\Wingetix.lnk")
-        $s1.TargetPath = '${exePathForShortcut.replace(/'/g, "''")}'
-        $s1.WorkingDirectory = '${finalTargetDir.replace(/'/g, "''")}'
-        $s1.Description = 'Wingetix - Visual Control Panel'
-        $s1.Save()
-      `;
-    }
+    const shortcutOpts = {
+      target: exePathForShortcut,
+      cwd: finalTargetDir,
+      args: shortcutArgs,
+      description: 'Wingetix - The Ultimate Visual Control Panel for Windows',
+      icon: iconForShortcut,
+      iconIndex: 0,
+      appUserModelId: 'com.joselyky.wingetix'
+    };
 
-    shortcutPsScript += `
-      $startMenu = [Environment]::GetFolderPath('Programs')
-      $s2 = (New-Object -COM WScript.Shell).CreateShortcut("$startMenu\\Wingetix.lnk")
-      $s2.TargetPath = '${exePathForShortcut.replace(/'/g, "''")}'
-      $s2.WorkingDirectory = '${finalTargetDir.replace(/'/g, "''")}'
-      $s2.Description = 'Wingetix - Visual Control Panel'
-      $s2.Save()
-    `;
-
+    // Resolve true Windows Desktop & Start Menu paths via Electron's native Known Folder API
+    let desktopDir = '';
     try {
-      await new Promise((resolve) => {
-        const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', shortcutPsScript], {
-          windowsHide: true
-        });
-        ps.on('close', () => resolve());
-        ps.on('error', () => resolve());
-        setTimeout(resolve, 4000);
-      });
-    } catch (_) {}
+      desktopDir = app.getPath('desktop');
+    } catch (_) {
+      desktopDir = path.join(os.homedir(), 'Desktop');
+    }
+    const startMenuProgramsDir = path.join(
+      process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+      'Microsoft', 'Windows', 'Start Menu', 'Programs'
+    );
+
+    const desktopLnkPath = path.join(desktopDir, 'Wingetix.lnk');
+    const startMenuLnkPath = path.join(startMenuProgramsDir, 'Wingetix.lnk');
+
+    let desktopCreated = !createDesktop;
+    if (createDesktop) {
+      desktopCreated = createShortcutSafe(desktopLnkPath, shortcutOpts);
+    }
+    const startMenuCreated = createShortcutSafe(startMenuLnkPath, shortcutOpts);
+
+    // Fallback to PowerShell WScript.Shell ONLY if native shell.writeShortcutLink returned false
+    if (!desktopCreated || !startMenuCreated) {
+      let shortcutPsScript = '';
+      if (createDesktop && !desktopCreated) {
+        shortcutPsScript += `
+          $s1 = (New-Object -COM WScript.Shell).CreateShortcut('${desktopLnkPath.replace(/'/g, "''")}')
+          $s1.TargetPath = '${exePathForShortcut.replace(/'/g, "''")}'
+          $s1.Arguments = '${shortcutArgs}'
+          $s1.WorkingDirectory = '${finalTargetDir.replace(/'/g, "''")}'
+          $s1.IconLocation = '${iconForShortcut.replace(/'/g, "''")},0'
+          $s1.Description = 'Wingetix - Visual Control Panel'
+          $s1.Save()
+        `;
+      }
+      if (!startMenuCreated) {
+        shortcutPsScript += `
+          $s2 = (New-Object -COM WScript.Shell).CreateShortcut('${startMenuLnkPath.replace(/'/g, "''")}')
+          $s2.TargetPath = '${exePathForShortcut.replace(/'/g, "''")}'
+          $s2.Arguments = '${shortcutArgs}'
+          $s2.WorkingDirectory = '${finalTargetDir.replace(/'/g, "''")}'
+          $s2.IconLocation = '${iconForShortcut.replace(/'/g, "''")},0'
+          $s2.Description = 'Wingetix - Visual Control Panel'
+          $s2.Save()
+        `;
+      }
+      if (shortcutPsScript) {
+        try {
+          await new Promise((resolve) => {
+            const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', shortcutPsScript], {
+              windowsHide: true
+            });
+            ps.on('close', () => resolve());
+            ps.on('error', () => resolve());
+            setTimeout(resolve, 4000);
+          });
+        } catch (_) {}
+      }
+    }
 
     // Registry Uninstall entry
     try {
@@ -782,7 +869,7 @@ ipcMain.on('installer:run-install', async (event, config) => {
         Set-ItemProperty -Path $regPath -Name 'DisplayVersion' -Value '1.2.0' -Force
         Set-ItemProperty -Path $regPath -Name 'Publisher' -Value 'Wingetix' -Force
         Set-ItemProperty -Path $regPath -Name 'InstallLocation' -Value '${finalTargetDir.replace(/'/g, "''")}' -Force
-        Set-ItemProperty -Path $regPath -Name 'DisplayIcon' -Value '${exePathForShortcut.replace(/'/g, "''")},0' -Force
+        Set-ItemProperty -Path $regPath -Name 'DisplayIcon' -Value '${iconForShortcut.replace(/'/g, "''")},0' -Force
         Set-ItemProperty -Path $regPath -Name 'UninstallString' -Value '"${exePathForShortcut.replace(/'/g, "''")}" --uninstall' -Force
       `;
       const psReg = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', regCmd], { windowsHide: true });
