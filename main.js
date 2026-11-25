@@ -758,9 +758,9 @@ ipcMain.on('installer:run-install', async (event, config) => {
 
     sendProgress(55, lang === 'es' ? 'Archivos del sistema instalados y verificados (55%)' : 'System files installed and verified (55%)', 'extract');
 
-    // WinGet Registration / PATH fix if requested
+    // WinGet Registration / PATH fix & auto-accept source agreements if requested
     if (enableWinget) {
-      sendProgress(65, lang === 'es' ? 'Verificando y registrando motor WinGet... (70%)' : 'Verifying and registering WinGet engine... (70%)', 'winget');
+      sendProgress(65, lang === 'es' ? 'Verificando y activando motor WinGet... (70%)' : 'Verifying and enabling WinGet engine... (70%)', 'winget');
       const scriptPath = getScriptPath('enable-winget.ps1');
       if (fs.existsSync(scriptPath)) {
         await new Promise((resolve) => {
@@ -769,9 +769,18 @@ ipcMain.on('installer:run-install', async (event, config) => {
           });
           ps.on('close', () => resolve());
           ps.on('error', () => resolve());
-          setTimeout(resolve, 8000);
+          setTimeout(resolve, 25000);
         });
       }
+      // Guarantee msstore & winget source agreements are permanently accepted for the current user
+      try {
+        await new Promise((resolve) => {
+          const wg = spawnWinget(['list', '--name', 'WingetixInit', '--exact', '--accept-source-agreements', '--disable-interactivity']);
+          wg.on('close', () => resolve());
+          wg.on('error', () => resolve());
+          setTimeout(resolve, 8000);
+        });
+      } catch (_) {}
     }
 
     sendProgress(80, lang === 'es' ? 'Creando accesos directos y registrando... (90%)' : 'Creating shortcuts and registering... (90%)', 'shortcuts');
@@ -1187,7 +1196,7 @@ async function attachIconsToPackages(packages) {
 ipcMain.handle('winget:list-upgrades', async () => {
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawnWinget(['upgrade', '--accept-source-agreements'], { env });
+    const proc = spawnWinget(['upgrade', '--accept-source-agreements', '--disable-interactivity'], { env });
 
     const chunks = [], errChunks = [];
     proc.stdout.on('data', d => chunks.push(d));
@@ -1292,9 +1301,14 @@ ipcMain.handle('winget:enable-in-terminal', async () => {
     proc.stderr.on('data', d => { stderr += d.toString(); });
 
     proc.on('close', code => {
-      if (installInterval) { clearInterval(installInterval); installInterval = null; }
-      if (autoInstallTimer) { clearTimeout(autoInstallTimer); autoInstallTimer = null; }
-      resolve({ success: code === 0, stdout, stderr, code });
+      try {
+        const wg = spawnWinget(['list', '--name', 'WingetixInit', '--exact', '--accept-source-agreements', '--disable-interactivity']);
+        wg.on('close', () => resolve({ success: code === 0, stdout, stderr, code }));
+        wg.on('error', () => resolve({ success: code === 0, stdout, stderr, code }));
+        setTimeout(() => resolve({ success: code === 0, stdout, stderr, code }), 6000);
+      } catch (_) {
+        resolve({ success: code === 0, stdout, stderr, code });
+      }
     });
 
     proc.on('error', err => {
@@ -1842,7 +1856,7 @@ ipcMain.handle('winget:pin-list', async () => {
   return new Promise((resolve) => {
     const localPins = loadPinnedStore();
     const env = buildEnv();
-    const proc = spawnWinget(['pin', 'list'], {
+    const proc = spawnWinget(['pin', 'list', '--accept-source-agreements', '--disable-interactivity'], {
       env
     });
 
@@ -1895,7 +1909,7 @@ ipcMain.handle('winget:pin-add', async (_e, pkg) => {
 
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawnWinget(['pin', 'add', '--id', `"${pkgId}"`, '--blocking'], {
+    const proc = spawnWinget(['pin', 'add', '--id', `"${pkgId}"`, '--blocking', '--accept-source-agreements', '--disable-interactivity'], {
       env
     });
 
@@ -1940,7 +1954,7 @@ ipcMain.handle('winget:pin-remove', async (_e, pkgId) => {
 
   return new Promise((resolve) => {
     const env = buildEnv();
-    const proc = spawnWinget(['pin', 'remove', '--id', `"${pkgId}"`], {
+    const proc = spawnWinget(['pin', 'remove', '--id', `"${pkgId}"`, '--accept-source-agreements', '--disable-interactivity'], {
       env
     });
 
@@ -2228,7 +2242,8 @@ ipcMain.on('winget:upgrade-packages', (event, packages) => {
       '--silent',
       '--force',
       '--accept-package-agreements',
-      '--accept-source-agreements'
+      '--accept-source-agreements',
+      '--disable-interactivity'
     ];
 
     const proc = spawnWinget(args, {
@@ -4021,7 +4036,7 @@ $result | ConvertTo-Json -Depth 4
 ipcMain.on('gpu:install-package', (event, { pkgId, source, name }) => {
   event.sender.send('gpu:install-log', { type: 'info', text: `▶ Iniciando proceso para ${name || pkgId}...\n` });
 
-  let args = ['install', '--id', pkgId, '--exact', '--accept-package-agreements', '--accept-source-agreements'];
+  let args = ['install', '--id', pkgId, '--exact', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'];
   if (source) {
     args.push('--source', source);
   } else {

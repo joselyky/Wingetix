@@ -196,8 +196,32 @@ if (-not $wingetFound -or $ForceDownload) {
     Write-Host "  -> Winget detectado correctamente." -ForegroundColor Green
 }
 
-# ── 4. Notificar al sistema sobre cambios de variables de entorno ──
-Write-Host "`n[PASO 4/4] Notificando al sistema operativo sobre cambios en PATH..." -ForegroundColor Yellow
+# ── 4. Aceptar automaticamente los terminos de uso de fuentes (msstore y winget) ──
+Write-Host "`n[PASO 4/5] Aceptando automaticamente los acuerdos de terminos de fuentes (msstore / winget)..." -ForegroundColor Yellow
+try {
+    $wingetBinToInit = $null
+    if ($physicalDir -and (Test-Path (Join-Path $physicalDir.FullName "winget.exe"))) {
+        $wingetBinToInit = Join-Path $physicalDir.FullName "winget.exe"
+    } elseif (Test-Path (Join-Path $windowsAppsUser "winget.exe")) {
+        $wingetBinToInit = Join-Path $windowsAppsUser "winget.exe"
+    } else {
+        $cmdFound = Get-Command "winget" -ErrorAction SilentlyContinue
+        if ($cmdFound) { $wingetBinToInit = $cmdFound.Source }
+    }
+
+    if ($wingetBinToInit) {
+        # Ejecutar una consulta rapida con --accept-source-agreements persiste la aceptacion
+        # de msstore y winget en la base de datos local del usuario para que nunca vuelva a pedir [Y] Yes / [N] No en CMD/PowerShell
+        & $wingetBinToInit list --name "WingetixInit" --exact --accept-source-agreements --disable-interactivity *> $null
+        & $wingetBinToInit upgrade --accept-source-agreements --disable-interactivity *> $null
+        Write-Host "  -> Terminos de 'msstore' y 'winget' aceptados y guardados permanentemente." -ForegroundColor Green
+    }
+} catch {
+    Write-Host "  -> Continuando tras inicializacion de acuerdos." -ForegroundColor Gray
+}
+
+# ── 5. Notificar al sistema sobre cambios de variables de entorno ──
+Write-Host "`n[PASO 5/5] Notificando al sistema operativo sobre cambios en PATH..." -ForegroundColor Yellow
 try {
     if (-not ("Win32.NativeMethods" -as [type])) {
         Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @'
